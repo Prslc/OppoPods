@@ -2,8 +2,11 @@ package moe.chenxy.oppopods.hook
 
 import android.annotation.SuppressLint
 import android.app.StatusBarManager
+import android.bluetooth.BluetoothA2dp
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothHeadset
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.ContextWrapper
@@ -15,35 +18,82 @@ import moe.chenxy.oppopods.pods.RfcommController
 import moe.chenxy.oppopods.utils.SystemApisUtils.setIconVisibility
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
 
+@SuppressLint("StaticFieldLeak", "MissingPermission")
 object HeadsetStateDispatcher : HookContext() {
+    private const val TAG = "OppoPods-Bluetooth"
     private var notificationSettingsReceiverRegistered = false
     private var notificationSettingsContext: Context? = null
     private var notificationSettingsReceiver: BroadcastReceiver? = null
 
     override fun onHook() {
-        hookAfter(findMethodByParamCount("com.android.bluetooth.a2dp.A2dpService", "handleConnectionStateChanged", 3)) {
-            val currState = args[2] as Int
-            val fromState = args[1] as Int
-            val device = args[0] as BluetoothDevice?
-            val handler = getObjectField(instance, "mHandler") as Handler
-            if (device == null || currState == fromState) {
-                return@hookAfter
-            }
-            handler.post {
-                Log.d("OppoPods", "A2DP Connection State: $currState, isOppoPod ${isOppoPod(device)}")
-                val context = instance as ContextWrapper
-                registerNotificationSettingsReceiver(context)
-                if (!isOppoPod(device)) return@post
+        hookA2dpConnectionState()
+        reconnectConnectedPod()
+    }
 
-                val statusBarManager = context.getSystemService("statusbar") as StatusBarManager
-                if (currState == BluetoothHeadset.STATE_CONNECTED) {
-                    statusBarManager.setIconVisibility("wireless_headset", true)
-                    RfcommController.connectPod(context, device, prefs)
-                } else if (currState == BluetoothHeadset.STATE_DISCONNECTING || currState == BluetoothHeadset.STATE_DISCONNECTED) {
-                    statusBarManager.setIconVisibility("wireless_headset", false)
-                    RfcommController.disconnectedPod(context, device)
-                }
+    @SuppressLint("PrivateApi")
+    private fun reconnectConnectedPod() {
+        val ctx = runCatching {
+            Class.forName("android.app.ActivityThread")
+                .getMethod("currentApplication").invoke(null) as? Context
+        }.getOrNull() ?: return
+        val adapter = (ctx.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter ?: return
+        adapter.getProfileProxy(ctx, object : BluetoothProfile.ServiceListener {
+            override fun onServiceConnected(profile: Int, proxy: BluetoothProfile?) {
+                if (profile != BluetoothProfile.A2DP || proxy !is BluetoothA2dp) return
+                runCatching {
+                    for (device in proxy.connectedDevices) {
+                        if (isOppoPod(device)) {
+                            Log.d(TAG, "reconnect after hot reload: ${runCatching { device.address }.getOrNull()} ${runCatching { device.name }.getOrNull()}")
+                            RfcommController.connectPod(ctx, device, prefs)
+                            return
+                        }
+                    }
+                }.onFailure { Log.w(TAG, "reconnectConnectedPod failed", it) }
             }
+
+            override fun onServiceDisconnected(profile: Int) {}
+        }, BluetoothProfile.A2DP)
+    }
+
+    // 不同系统版本上 A2dpService 的连接状态回调方法名不一致：
+    // 新版 HyperOS/Android 为 connectionStateChanged，旧版为 handleConnectionStateChanged。
+    // 逐个尝试，失败只跳过该项，避免整个蓝牙进程模块注入崩溃。
+    private fun hookA2dpConnectionState() {
+        val className = "com.android.bluetooth.a2dp.A2dpService"
+        val candidateMethods = listOf("connectionStateChanged", "handleConnectionStateChanged")
+        for (methodName in candidateMethods) {
+            val hooked = runCatching {
+                hookAfter(findMethodByParamCount(className, methodName, 3)) {
+                    val currState = args[2] as Int
+                    val fromState = args[1] as Int
+                    val device = args[0] as BluetoothDevice?
+                    val handler = getObjectField(instance, "mHandler") as Handler
+                    if (device == null || currState == fromState) {
+                        return@hookAfter
+                    }
+                    handler.post {
+                        Log.d(TAG, "A2DP Connection State: $currState, isOppoPod ${isOppoPod(device)}")
+                        val context = instance as ContextWrapper
+                        registerNotificationSettingsReceiver(context)
+                        if (!isOppoPod(device)) return@post
+
+                        val statusBarManager = context.getSystemService("statusbar") as StatusBarManager
+                        if (currState == BluetoothHeadset.STATE_CONNECTED) {
+                            statusBarManager.setIconVisibility("wireless_headset", true)
+                            RfcommController.connectPod(context, device, prefs)
+                        } else if (currState == BluetoothHeadset.STATE_DISCONNECTING || currState == BluetoothHeadset.STATE_DISCONNECTED) {
+                            statusBarManager.setIconVisibility("wireless_headset", false)
+                            RfcommController.disconnectedPod(context, device)
+                        }
+                    }
+                }
+                true
+            }.onSuccess {
+                Log.d(TAG, "hooked A2dpService.$methodName")
+            }.onFailure {
+                Log.w(TAG, "hook A2dpService.$methodName skipped", it)
+            }.getOrDefault(false)
+            if (hooked) return
         }
     }
 

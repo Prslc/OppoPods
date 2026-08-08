@@ -84,6 +84,7 @@ object MiLinkServiceHook : HookContext() {
     private var lastCirculateHeadsetId: String? = null
     private var lastCirculateHeadsetType: Int = 0
 
+    @SuppressLint("PrivateApi")
     override fun onHook() {
         Log.d(TAG, "MiLink hook initialized; custom placement resolver=runtime-suffix")
         hookContextEntry()
@@ -96,6 +97,12 @@ object MiLinkServiceHook : HookContext() {
         hookCustomButtonPlacementForTypeOne()
         hookCirculateHeadsetServiceInfo()
         hookHeadSetsDetailDetach()
+        // 热重载后 getInstanceForIsMiTWS 不会再次触发，接收器依赖它注册会漏掉；
+        // 直接取 Application context 兜底补注册（idempotent）。
+        runCatching {
+            Class.forName("android.app.ActivityThread")
+                .getMethod("currentApplication").invoke(null) as? Context
+        }.getOrNull()?.let(::registerStatusReceiver)
     }
 
     override fun onHotReloading() {
@@ -290,13 +297,18 @@ object MiLinkServiceHook : HookContext() {
         runCatching {
             hookBefore(findMethod(className, methodName, BluetoothDevice::class.java)) {
                 val device = args[0] as? BluetoothDevice ?: return@hookBefore
-                if (!isOppoPod(device)) return@hookBefore
+                if (!isOppoPod(device)) {
+                    Log.d(TAG, "$className.$methodName ignored: not oppo pod address=${runCatching { device.address }.getOrNull()} name=${runCatching { device.name }.getOrNull()}")
+                    return@hookBefore
+                }
                 rememberHeadsetController(className, instance, device)
                 captureRuntimeContext(instance)
+                val oldAnc = currentAnc
                 currentAnc = oppoAnc
+                saveState(context)
                 sendOppoAnc(oppoAnc)
                 this.result = result
-                Log.d(TAG, "$className.$methodName handled address=${device.address} oppoAnc=$oppoAnc result=$result")
+                Log.d(TAG, "$className.$methodName handled address=${device.address} oldAnc=$oldAnc oppoAnc=$oppoAnc result=$result ctx=${context?.packageName ?: "null"} instance=${instance?.javaClass?.name}")
             }
         }.onFailure { Log.w(TAG, "hook $className.$methodName command skipped", it) }
     }
@@ -337,13 +349,15 @@ object MiLinkServiceHook : HookContext() {
                 if (instanceContext != null) {
                     context = instanceContext.applicationContext ?: instanceContext
                 }
+                val oldAnc = currentAnc
                 currentAnc = oppoAnc
+                saveState(instanceContext)
                 sendOppoAnc(oppoAnc, instanceContext)
                 sendMiLinkAncChanged(oppoAnc, instanceContext)
                 notifyHeadsetPropertyChanged(instance, device, 8)
                 notifyHeadsetPropertyChanged(instance, device, 4)
                 this.result = miLinkAncState()
-                Log.d(TAG, "AncBatteryController.setAncStateBlock handled address=${device.address} miLinkMode=$miLinkMode oppoAnc=$oppoAnc result=${this.result} context=${instanceContext ?: context}")
+                Log.d(TAG, "AncBatteryController.setAncStateBlock handled address=${device.address} miLinkMode=$miLinkMode oppoAnc=$oppoAnc oldAnc=$oldAnc result=${this.result} ctx=${instanceContext?.packageName ?: context?.packageName ?: "null"}")
             }
         }.onFailure { Log.w(TAG, "hook AncBatteryController.setAncStateBlock skipped", it) }
     }
@@ -1449,7 +1463,7 @@ object MiLinkServiceHook : HookContext() {
 
     private fun sendOppoAnc(mode: Int, fallbackContext: Context? = null) {
         val ctx = fallbackContext ?: context ?: run {
-            Log.w(TAG, "sendOppoAnc skipped: context is null mode=$mode")
+            Log.w(TAG, "sendOppoAnc skipped: context is null mode=$mode currentAnc=$currentAnc")
             return
         }
         Intent(OppoPodsAction.ACTION_ANC_SELECT).apply {
@@ -1458,7 +1472,7 @@ object MiLinkServiceHook : HookContext() {
             addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
             ctx.sendBroadcast(this)
         }
-        Log.d(TAG, "sendOppoAnc broadcast sent mode=$mode")
+        Log.d(TAG, "sendOppoAnc broadcast sent mode=$mode pkg=${ctx.packageName} currentAnc=$currentAnc")
     }
 
     private fun sendOppoGameMode(enabled: Boolean, fallbackContext: Context? = null) {

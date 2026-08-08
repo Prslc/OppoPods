@@ -14,6 +14,7 @@ import android.media.AudioManager
 import android.media.MediaRoute2Info
 import android.media.MediaRouter2
 import android.media.RouteDiscoveryPreference
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
@@ -51,7 +52,7 @@ object RfcommController {
     }
     private lateinit var mPrefs: SharedPreferences
 
-    private var scanToken: MediaRouter2.ScanToken? = null
+    private var scanToken: Any? = null
     var routes: List<MediaRoute2Info> = listOf()
     private lateinit var mediaRouter: MediaRouter2
 
@@ -575,17 +576,25 @@ object RfcommController {
     }
 
     private fun startRoutesScan() {
-        val executor = Executor { p0 ->
-            CoroutineScope(Dispatchers.IO).launch { p0?.run() }
-        }
-        val preferredFeature = listOf(MediaRoute2Info.FEATURE_LIVE_AUDIO, MediaRoute2Info.FEATURE_LIVE_VIDEO)
-        mediaRouter.registerRouteCallback(executor, routeCallback, RouteDiscoveryPreference.Builder(preferredFeature, true).build())
-        scanToken = mediaRouter.requestScan(MediaRouter2.ScanRequest.Builder().build())
+        runCatching {
+            val executor = Executor { p0 ->
+                CoroutineScope(Dispatchers.IO).launch { p0?.run() }
+            }
+            val preferredFeature = listOf(MediaRoute2Info.FEATURE_LIVE_AUDIO, MediaRoute2Info.FEATURE_LIVE_VIDEO)
+            mediaRouter.registerRouteCallback(executor, routeCallback, RouteDiscoveryPreference.Builder(preferredFeature, true).build())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                scanToken = mediaRouter.requestScan(MediaRouter2.ScanRequest.Builder().build())
+            }
+        }.onFailure { Log.w(TAG, "startRoutesScan failed", it) }
     }
 
     private fun stopRoutesScan() {
-        scanToken?.let { mediaRouter.cancelScanRequest(it) }
-        mediaRouter.unregisterRouteCallback(routeCallback)
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+                scanToken?.let { mediaRouter.cancelScanRequest(it as MediaRouter2.ScanToken) }
+            }
+            mediaRouter.unregisterRouteCallback(routeCallback)
+        }.onFailure { Log.w(TAG, "stopRoutesScan failed", it) }
     }
 
     fun connectPod(context: Context, device: BluetoothDevice, prefs: SharedPreferences) {
