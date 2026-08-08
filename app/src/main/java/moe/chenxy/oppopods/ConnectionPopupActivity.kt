@@ -59,11 +59,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.view.WindowCompat
 import kotlinx.coroutines.delay
 import moe.chenxy.oppopods.pods.PodImageSlot
 import moe.chenxy.oppopods.pods.PodImageStore
 import moe.chenxy.oppopods.ui.AppTheme
+import moe.chenxy.oppopods.utils.applyTransparentEdgeToEdge
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsPrefsKey
@@ -76,9 +76,7 @@ class ConnectionPopupActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         window.setBackgroundDrawable(ColorDrawable(AndroidColor.TRANSPARENT))
-        window.statusBarColor = AndroidColor.TRANSPARENT
-        window.navigationBarColor = AndroidColor.TRANSPARENT
-        WindowCompat.setDecorFitsSystemWindows(window, false)
+        applyTransparentEdgeToEdge()
 
         val prefs = getSharedPreferences("oppopods_settings", Context.MODE_PRIVATE)
         val colorSchemeMode = when (prefs.getInt("theme_mode", 0)) {

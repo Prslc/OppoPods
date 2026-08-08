@@ -1,18 +1,16 @@
 package moe.chenxy.oppopods
 
 import android.content.Context
-import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.core.content.edit
 import moe.chenxy.oppopods.ui.App
+import moe.chenxy.oppopods.utils.applyTransparentEdgeToEdge
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -29,12 +27,7 @@ class MainActivity : ComponentActivity() {
             }
 
             DisposableEffect(darkMode) {
-                enableEdgeToEdge(
-                    statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkMode },
-                    navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { darkMode },
-                )
-
-                window.isNavigationBarContrastEnforced = false
+                applyTransparentEdgeToEdge(darkMode)
 
                 onDispose {}
             }

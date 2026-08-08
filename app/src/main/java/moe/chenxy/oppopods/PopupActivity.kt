@@ -36,6 +36,7 @@ import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.ui.AppTheme
 import moe.chenxy.oppopods.ui.components.AncSwitch
 import moe.chenxy.oppopods.ui.components.PodStatus
+import moe.chenxy.oppopods.utils.applyTransparentEdgeToEdge
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.batteryStatusCompat
@@ -49,6 +50,8 @@ import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 class PopupActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        applyTransparentEdgeToEdge()
 
         setContent {
             val prefs = getSharedPreferences("oppopods_settings", Context.MODE_PRIVATE)
