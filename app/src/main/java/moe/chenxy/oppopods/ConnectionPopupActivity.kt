@@ -63,6 +63,7 @@ import kotlinx.coroutines.delay
 import moe.chenxy.oppopods.pods.PodImageSlot
 import moe.chenxy.oppopods.pods.PodImageStore
 import moe.chenxy.oppopods.ui.AppTheme
+import moe.chenxy.oppopods.ui.components.rememberBatteryDisplay
 import moe.chenxy.oppopods.utils.applyTransparentEdgeToEdge
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
@@ -342,9 +343,20 @@ private fun BatteryLine(
     pod: PodParams?,
     textColor: Color
 ) {
-    val isConnected = pod?.isConnected == true
-    val level = pod?.battery?.coerceIn(0, 100) ?: 0
-    val levelText = if (isConnected) "$level%" else "-"
+    val display = rememberBatteryDisplay(pod)
+    val isConnected = display.isConnected
+    val level = display.level
+    val levelText = when {
+        isConnected -> "$level%"
+        display.hasLastKnown -> "${display.lastKnownLevel}%"
+        else -> "-"
+    }
+    // Unknown battery shows the full icon (like MiLink) instead of an empty one.
+    val iconLevel = when {
+        isConnected -> level
+        display.hasLastKnown -> display.lastKnownLevel
+        else -> 100
+    }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         BasicText(
@@ -358,7 +370,7 @@ private fun BatteryLine(
         )
         Spacer(modifier = Modifier.width(5.dp))
         Image(
-            painter = painterResource(getBatteryIconRes(level, pod?.isCharging == true)),
+            painter = painterResource(getBatteryIconRes(iconLevel, if (isConnected) pod?.isCharging == true else false)),
             contentDescription = "$label $levelText",
             modifier = Modifier.size(width = 28.dp, height = 17.dp)
         )

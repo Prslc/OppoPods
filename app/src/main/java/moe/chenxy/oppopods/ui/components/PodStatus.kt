@@ -15,10 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -85,21 +82,21 @@ fun PodStatus(
 
 @Composable
 private fun BatteryColumn(label: String, pod: PodParams?, modifier: Modifier = Modifier, compact: Boolean = false) {
-    val isConnected = pod != null && pod.isConnected
-    val level = pod?.battery ?: 0
+    val display = rememberBatteryDisplay(pod)
+    val isConnected = display.isConnected
+    val level = display.level
 
-    var lastKnownLevel by remember { mutableIntStateOf(-1) }
-    if (level > 0) {
-        lastKnownLevel = level
-    }
-
-    val hasKnownLevel = lastKnownLevel >= 0
     val displayLevel = when {
         isConnected -> "$level%"
-        hasKnownLevel -> "$lastKnownLevel%"
+        display.hasLastKnown -> "${display.lastKnownLevel}%"
         else -> "-"
     }
-    val iconLevel = if (isConnected) level else if (hasKnownLevel) lastKnownLevel else level
+    // Unknown battery shows the full icon (like MiLink) instead of an empty one.
+    val iconLevel = when {
+        isConnected -> level
+        display.hasLastKnown -> display.lastKnownLevel
+        else -> 100
+    }
 
     // Pad short labels (左/右) to match width of longest label (耳机盒) using ideographic spaces
     val paddedLabel = if (label.length < 3) label.padEnd(3, '\u3000') else label
