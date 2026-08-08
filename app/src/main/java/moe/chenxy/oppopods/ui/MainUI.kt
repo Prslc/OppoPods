@@ -19,7 +19,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -56,9 +55,9 @@ import moe.chenxy.oppopods.pods.DeviceProfile
 import moe.chenxy.oppopods.pods.DeviceProfileStore
 import moe.chenxy.oppopods.pods.EqDevicePreset
 import moe.chenxy.oppopods.pods.EqPreset
+import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.pods.PodImageSlot
 import moe.chenxy.oppopods.pods.PodImageStore
-import moe.chenxy.oppopods.pods.NoiseControlMode
 import moe.chenxy.oppopods.pods.RfcommConnectionMethod
 import moe.chenxy.oppopods.pods.SpatialAudioMode
 import moe.chenxy.oppopods.utils.SaveOnHideEffect
@@ -98,7 +97,7 @@ sealed interface Screen : NavKey {
     data object DebugLog : Screen
 }
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "MissingPermission")
 @Composable
 fun MainUI(
     themeMode: MutableState<Int> = mutableStateOf(0),
@@ -208,7 +207,7 @@ fun MainUI(
     BtLogStore.isEnabled = loggingEnabled.value
     val appController = remember { AppRfcommController() }
     // 收到 0x8103 后按 productId 在内嵌白名单里精确命中并重建配置（仅自动模式生效）。
-    remember(appController) {
+    LaunchedEffect(appController) {
         appController.productIdResolver = { productId ->
             DeviceProfileStore.profileForProductId(context, prefs, productId)
                 ?.also { activeProfile.value = it }
