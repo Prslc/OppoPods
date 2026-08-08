@@ -1,16 +1,12 @@
 package moe.chenxy.oppopods.pods
 
 import android.annotation.SuppressLint
-import android.app.StatusBarManager
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.media.AudioManager
 import android.media.MediaRoute2Info
 import android.media.MediaRouter2
 import android.media.RouteDiscoveryPreference
@@ -23,10 +19,11 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import moe.chenxy.oppopods.BuildConfig
 import moe.chenxy.oppopods.utils.MediaControl
 import moe.chenxy.oppopods.utils.SystemApisUtils
-import moe.chenxy.oppopods.utils.SystemApisUtils.setIconVisibility
 import moe.chenxy.oppopods.utils.miuiStrongToast.MiuiStrongToastUtil
 import moe.chenxy.oppopods.utils.miuiStrongToast.MiuiStrongToastUtil.cancelPodsNotificationByMiuiBt
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
@@ -49,9 +46,6 @@ object RfcommController {
     private var socket: BluetoothSocket? = null
     private var mContext: Context? = null
     lateinit var mDevice: BluetoothDevice
-    private val audioManager: AudioManager? by lazy {
-        mContext?.getSystemService(AudioManager::class.java)
-    }
     private lateinit var mPrefs: SharedPreferences
 
     private var scanToken: Any? = null
@@ -118,7 +112,7 @@ object RfcommController {
     }
 
     private fun changeUIAncStatus(status: Int) {
-        if (status < 1 || status > 4) return
+        if (status !in 1..4) return
         Intent(OppoPodsAction.ACTION_PODS_ANC_CHANGED).apply {
             this.putExtra("status", status)
             this.`package` = BuildConfig.APPLICATION_ID
@@ -671,7 +665,7 @@ object RfcommController {
             if (retryRfcommConnect()) {
                 // Handshake packet has no response; keep only a short pacing delay.
                 sendPacketSafe(OppoPackets.buildHandshake(), "handshake")
-                delay(150)
+                delay(150.milliseconds)
                 // Query product id: await the 0x8103 response. On a whitelist match
                 // handleOppoPacket rebuilds activeProfile and fires the status
                 // queries itself, so no blind waits are needed here.
@@ -683,7 +677,7 @@ object RfcommController {
                 if (!productIdReceived) {
                     // Fallback status query when 0x8103 missed/timed out (the handler
                     // already fires it on a successful match, so avoid double-sending).
-                    delay(150)
+                    delay(150.milliseconds)
                     sendStatusQueryPackets()
                 }
             }
@@ -691,9 +685,9 @@ object RfcommController {
 
         // Start battery polling
         batteryPollJob = CoroutineScope(Dispatchers.IO).launch {
-            delay(2000) // Wait for initial connection
+            delay(2.seconds) // Wait for initial connection
             while (isPodConnected) {
-                delay(BATTERY_POLL_INTERVAL_MS)
+                delay(BATTERY_POLL_INTERVAL_MS.milliseconds)
                 if (isPodConnected) {
                     queryStatus(allowReconnect = false)
                 }
@@ -714,7 +708,7 @@ object RfcommController {
         for (attempt in 0 until maxAttempts) {
             val reason = if (attempt == 0) "initial connect" else "initial connect retry #$attempt"
             if (connectRfcomm(reason)) return true
-            if (attempt < maxAttempts - 1) delay(baseDelayMs * (1L shl attempt))
+            if (attempt < maxAttempts - 1) delay((baseDelayMs * (1L shl attempt)).milliseconds)
         }
         Log.w(TAG, "Initial RFCOMM connect failed after $maxAttempts attempts; will retry on the next control/query operation")
         return false
@@ -1006,7 +1000,7 @@ object RfcommController {
             Log.d(TAG, "Broadcast codes received: $broadcastCodes")
             broadcastCodesResponse.trySend(Unit)
             CoroutineScope(Dispatchers.IO).launch {
-                delay(100)
+                delay(100.milliseconds)
                 sendPacketSafe(OppoPackets.buildSubscribeBroadcast(broadcastCodes), "subscribe broadcast")
             }
             return
@@ -1240,7 +1234,7 @@ object RfcommController {
                 ),
                 "save EQ preset",
             )
-            delay(450)
+            delay(450.milliseconds)
             queryEqDetails()
         }
     }
@@ -1259,9 +1253,9 @@ object RfcommController {
                 OppoPackets.buildDeleteEqualizer(entry.id)
             }
             sendPacketSafe(packet, "delete EQ preset")
-            delay(450)
+            delay(450.milliseconds)
             queryEqDetails()
-            delay(900)
+            delay(900.milliseconds)
             pendingDeletedEqIds.remove(entry.id)
             queryEqDetails()
         }
@@ -1271,7 +1265,7 @@ object RfcommController {
         if (!activeProfile.customEqVisible) return
         CoroutineScope(Dispatchers.IO).launch {
             sendPacketSafe(activeProfile.packet(ProfileKeys.QUERY_EQ), "query EQ")
-            delay(80)
+            delay(80.milliseconds)
             sendPacketSafe(activeProfile.packet(ProfileKeys.QUERY_EQ_ALL), "query all EQ presets")
         }
     }
@@ -1324,31 +1318,25 @@ object RfcommController {
         }
     }
 
-    fun queryBattery(allowReconnect: Boolean = false) {
-        CoroutineScope(Dispatchers.IO).launch {
-            sendPacketSafe(activeProfile.packet(ProfileKeys.QUERY_BATTERY), "query battery", allowReconnect)
-        }
-    }
-
     private suspend fun sendGameModePackets(enabled: Boolean) {
         for ((index, packet) in activeProfile.gameModePackets(enabled).withIndex()) {
-            if (index > 0) delay(120)
+            if (index > 0) delay(120.milliseconds)
             if (!sendPacketSafe(packet, "set game mode")) return
         }
     }
 
     private suspend fun sendStatusQueryPackets(allowReconnect: Boolean = false) {
         if (!sendPacketSafe(activeProfile.packet(ProfileKeys.QUERY_STATUS), "query status", allowReconnect)) return
-        delay(50)
+        delay(50.milliseconds)
         if (!sendPacketSafe(activeProfile.packet(ProfileKeys.QUERY_BATTERY), "query battery", allowReconnect)) return
-        delay(50)
+        delay(50.milliseconds)
         if (!sendPacketSafe(activeProfile.packet(ProfileKeys.QUERY_ANC), "query ANC", allowReconnect)) return
         if (activeProfile.eqPresets.isNotEmpty()) {
-            delay(50)
+            delay(50.milliseconds)
             if (!sendPacketSafe(activeProfile.packet(ProfileKeys.QUERY_EQ), "query EQ", allowReconnect)) return
         }
         if (activeProfile.customEqVisible) {
-            delay(50)
+            delay(50.milliseconds)
             sendPacketSafe(activeProfile.packet(ProfileKeys.QUERY_EQ_ALL), "query all EQ presets", allowReconnect)
         }
     }
@@ -1362,103 +1350,35 @@ object RfcommController {
         }
     }
 
-    fun disconnectAudio(context: Context, device: BluetoothDevice?) {
-        val bluetoothAdapter = context.getSystemService(BluetoothManager::class.java).adapter
-
-        MediaControl.sendPause()
-
-        bluetoothAdapter?.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
-            override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
-                if (profile == BluetoothProfile.HEADSET) {
-                    try {
-                        val method = proxy.javaClass.getMethod("disconnect", BluetoothDevice::class.java)
-                        method.invoke(proxy, device)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        bluetoothAdapter.closeProfileProxy(BluetoothProfile.HEADSET, proxy)
-                    }
-                }
-            }
-            override fun onServiceDisconnected(profile: Int) { }
-        }, BluetoothProfile.HEADSET)
-
-        CoroutineScope(Dispatchers.Default).launch {
-            delay(500)
-            for (route in routes) {
-                if (route.type == MediaRoute2Info.TYPE_BUILTIN_SPEAKER) {
-                    Log.d(TAG, "found speaker route $route")
-                    mediaRouter.transferTo(route)
-                }
-            }
-        }
-
-        setRegularBatteryLevel(lastTempBatt)
-    }
-
-    fun connectAudio(context: Context, device: BluetoothDevice?) {
-        val targetDevice = device ?: return
-        val bluetoothAdapter = context.getSystemService(BluetoothManager::class.java).adapter
-
-        bluetoothAdapter?.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
-            override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
-                if (profile == BluetoothProfile.HEADSET) {
-                    try {
-                        val method = proxy.javaClass.getMethod("connect", BluetoothDevice::class.java)
-                        method.invoke(proxy, targetDevice)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
-                        bluetoothAdapter.closeProfileProxy(BluetoothProfile.HEADSET, proxy)
-                    }
-                }
-            }
-            override fun onServiceDisconnected(profile: Int) { }
-        }, BluetoothProfile.HEADSET)
-
-        for (route in routes) {
-            if (route.type == MediaRoute2Info.TYPE_BLUETOOTH_A2DP && route.name == targetDevice.name) {
-                Log.d(TAG, "found bt route $route")
-                mediaRouter.transferTo(route)
-            }
-        }
-
-        val statusBarManager = context.getSystemService("statusbar") as StatusBarManager
-        statusBarManager.setIconVisibility("wireless_headset", true)
-        setRegularBatteryLevel(lastTempBatt)
-    }
-
     fun setRegularBatteryLevel(level: Int) {
         try {
-            val service = getObjectField(mContext, "mAdapterService")
-            callMethod(service, "setBatteryLevel", mDevice, level, false)
+            val service = mContext?.let { ctx ->
+                var cls: Class<*>? = ctx.javaClass
+                while (cls != null) {
+                    runCatching {
+                        return@let cls.getDeclaredField("mAdapterService").apply { isAccessible = true }.get(ctx)
+                    }
+                    cls = cls.superclass
+                }
+                null
+            } ?: return
+            var cls: Class<*>? = service.javaClass
+            while (cls != null) {
+                runCatching {
+                    val method = cls.getDeclaredMethod(
+                        "setBatteryLevel",
+                        BluetoothDevice::class.java,
+                        Int::class.javaPrimitiveType,
+                        Boolean::class.javaPrimitiveType
+                    )
+                    method.isAccessible = true
+                    method.invoke(service, mDevice, level, false)
+                    return
+                }
+                cls = cls.superclass
+            }
         } catch (e: Exception) {
             Log.e(TAG, "setRegularBatteryLevel failed", e)
         }
-    }
-
-    private fun getObjectField(instance: Any?, fieldName: String): Any? {
-        if (instance == null) return null
-        var cls: Class<*>? = instance.javaClass
-        while (cls != null) {
-            runCatching {
-                return cls.getDeclaredField(fieldName).apply { isAccessible = true }.get(instance)
-            }
-            cls = cls.superclass
-        }
-        throw NoSuchFieldException(fieldName)
-    }
-
-    private fun callMethod(instance: Any?, methodName: String, vararg args: Any?): Any? {
-        if (instance == null) return null
-        var cls: Class<*>? = instance.javaClass
-        while (cls != null) {
-            cls.declaredMethods.firstOrNull { it.name == methodName && it.parameterTypes.size == args.size }?.let {
-                it.isAccessible = true
-                return it.invoke(instance, *args)
-            }
-            cls = cls.superclass
-        }
-        throw NoSuchMethodException(methodName)
     }
 }

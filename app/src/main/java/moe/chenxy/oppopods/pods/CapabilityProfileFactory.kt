@@ -109,8 +109,8 @@ object CapabilityProfileFactory {
     private fun featureCommands(caps: DeviceCapabilities): Map<String, PodCommand> {
         val map = LinkedHashMap<String, PodCommand>()
         fun putSwitch(onKey: String, offKey: String, feature: Int) {
-            map[onKey] = PodCommand(Cmd.SET_GAME_MODE, payload = featurePayload(feature, true))
-            map[offKey] = PodCommand(Cmd.SET_GAME_MODE, payload = featurePayload(feature, false))
+            map[onKey] = PodCommand(Cmd.SET_GAME_MODE, payload = featurePayload(feature, enabled = true))
+            map[offKey] = PodCommand(Cmd.SET_GAME_MODE, payload = featurePayload(feature, enabled = false))
         }
         if (caps.hasGameMode) {
             putSwitch(ProfileKeys.GAME_ON, ProfileKeys.GAME_OFF, caps.gameModeFeatureId)
