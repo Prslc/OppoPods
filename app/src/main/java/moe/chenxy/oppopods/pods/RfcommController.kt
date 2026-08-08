@@ -454,7 +454,7 @@ object RfcommController {
         previous: PodParams?,
         preserveMissing: Boolean
     ): PodParams {
-        if (info != null) {
+        if (info != null && (info.level > 0 || info.isCharging)) {
             lastKnownCaseBattery = info.level
             lastKnownCaseCharging = info.isCharging
             return PodParams(info.level, info.isCharging, true, previous?.rawStatus ?: 0)

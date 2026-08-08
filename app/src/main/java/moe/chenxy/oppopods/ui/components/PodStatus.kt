@@ -88,13 +88,18 @@ private fun BatteryColumn(label: String, pod: PodParams?, modifier: Modifier = M
     val isConnected = pod != null && pod.isConnected
     val level = pod?.battery ?: 0
 
-    var lastKnownLevel by remember { mutableIntStateOf(100) }
+    var lastKnownLevel by remember { mutableIntStateOf(-1) }
     if (level > 0) {
         lastKnownLevel = level
     }
 
-    val displayLevel = if (isConnected) "$level%" else "-"
-    val iconLevel = if (isConnected) level else lastKnownLevel
+    val hasKnownLevel = lastKnownLevel >= 0
+    val displayLevel = when {
+        isConnected -> "$level%"
+        hasKnownLevel -> "$lastKnownLevel%"
+        else -> "-"
+    }
+    val iconLevel = if (isConnected) level else if (hasKnownLevel) lastKnownLevel else level
 
     // Pad short labels (左/右) to match width of longest label (耳机盒) using ideographic spaces
     val paddedLabel = if (label.length < 3) label.padEnd(3, '\u3000') else label
