@@ -20,7 +20,7 @@ android {
 
     defaultConfig {
         applicationId = "moe.chenxy.oppopods"
-        minSdk = 35
+        minSdk = 34
         targetSdk = 36
         versionCode = 11
         versionName = "1.2.0"

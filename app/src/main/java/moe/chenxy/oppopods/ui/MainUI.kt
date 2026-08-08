@@ -798,7 +798,7 @@ fun MainUI(
                             IconButton(
                                 onClick = {
                                     if (isEqEditing) isEqEditing = false
-                                    else backStack.removeLast()
+                                    else backStack.removeAt(backStack.lastIndex)
                                 },
                             ) {
                                 Icon(
@@ -867,7 +867,7 @@ fun MainUI(
                         scrollBehavior = settingsScrollBehavior,
                         navigationIcon = {
                             IconButton(
-                                onClick = { backStack.removeLast() },
+                                onClick = { backStack.removeAt(backStack.lastIndex) },
                             ) {
                                 Icon(
                                     imageVector = MiuixIcons.Back,
@@ -946,7 +946,7 @@ fun MainUI(
                         scrollBehavior = profilesScrollBehavior,
                         navigationIcon = {
                             IconButton(
-                                onClick = { backStack.removeLast() },
+                                onClick = { backStack.removeAt(backStack.lastIndex) },
                             ) {
                                 Icon(
                                     imageVector = MiuixIcons.Back,
@@ -983,7 +983,7 @@ fun MainUI(
                         scrollBehavior = advancedScrollBehavior,
                         navigationIcon = {
                             IconButton(
-                                onClick = { backStack.removeLast() },
+                                onClick = { backStack.removeAt(backStack.lastIndex) },
                             ) {
                                 Icon(
                                     imageVector = MiuixIcons.Back,
@@ -1071,7 +1071,7 @@ fun MainUI(
         }
         entry<Screen.About> {
             AboutPage(
-                onBack = { backStack.removeLast() },
+                onBack = { backStack.removeAt(backStack.lastIndex) },
                 debugMode = debugMode.value,
                 onDebugModeChanged = { enabled ->
                     debugMode.value = enabled
@@ -1090,7 +1090,7 @@ fun MainUI(
                         scrollBehavior = moreSettingsScrollBehavior,
                         navigationIcon = {
                             IconButton(
-                                onClick = { backStack.removeLast() },
+                                onClick = { backStack.removeAt(backStack.lastIndex) },
                             ) {
                                 Icon(
                                     imageVector = MiuixIcons.Back,
@@ -1129,7 +1129,7 @@ fun MainUI(
                         scrollBehavior = debugScrollBehavior,
                         navigationIcon = {
                             IconButton(
-                                onClick = { backStack.removeLast() },
+                                onClick = { backStack.removeAt(backStack.lastIndex) },
                             ) {
                                 Icon(
                                     imageVector = MiuixIcons.Back,
@@ -1169,7 +1169,7 @@ fun MainUI(
                         scrollBehavior = logScrollBehavior,
                         navigationIcon = {
                             IconButton(
-                                onClick = { backStack.removeLast() },
+                                onClick = { backStack.removeAt(backStack.lastIndex) },
                             ) {
                                 Icon(
                                     imageVector = MiuixIcons.Back,
@@ -1200,7 +1200,7 @@ fun MainUI(
         entries = entries,
         onBack = {
             if (backStack.size > 1) {
-                backStack.removeLast()
+                backStack.removeAt(backStack.lastIndex)
             } else {
                 (context as? Activity)?.finish()
             }
