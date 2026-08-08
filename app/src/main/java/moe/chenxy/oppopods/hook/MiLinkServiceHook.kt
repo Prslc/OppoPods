@@ -97,8 +97,9 @@ object MiLinkServiceHook : HookContext() {
         hookCustomButtonPlacementForTypeOne()
         hookCirculateHeadsetServiceInfo()
         hookHeadSetsDetailDetach()
-        // 热重载后 getInstanceForIsMiTWS 不会再次触发，接收器依赖它注册会漏掉；
-        // 直接取 Application context 兜底补注册（idempotent）。
+        // getInstanceForIsMiTWS never fires again after a hot reload, so the
+        // status receiver would be left unregistered; re-register idempotently
+        // using the Application context as a fallback.
         runCatching {
             Class.forName("android.app.ActivityThread")
                 .getMethod("currentApplication").invoke(null) as? Context

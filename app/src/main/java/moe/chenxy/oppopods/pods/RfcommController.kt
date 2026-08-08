@@ -19,8 +19,10 @@ import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import moe.chenxy.oppopods.BuildConfig
 import moe.chenxy.oppopods.utils.MediaControl
 import moe.chenxy.oppopods.utils.SystemApisUtils
@@ -55,6 +57,12 @@ object RfcommController {
     private var scanToken: Any? = null
     var routes: List<MediaRoute2Info> = listOf()
     private lateinit var mediaRouter: MediaRouter2
+
+    // Handshake signals: after sending a query, suspend until the matching
+    // response cmd arrives (with timeout) instead of blind fixed delays.
+    // CONFLATED keeps only the most recent signal.
+    private val productIdResponse = Channel<Unit>(Channel.CONFLATED)
+    private val broadcastCodesResponse = Channel<Unit>(Channel.CONFLATED)
 
     // Status
     private var mShowedConnectedToast = false
@@ -660,25 +668,24 @@ object RfcommController {
 
         // Start persistent RFCOMM connection and battery polling
         CoroutineScope(Dispatchers.IO).launch {
-            var initialConnected = connectRfcomm("initial connect")
-            if (!initialConnected) {
-                delay(500)
-                initialConnected = connectRfcomm("initial connect retry")
-            }
-
-            if (initialConnected) {
-                delay(300)
+            if (retryRfcommConnect()) {
+                // Handshake packet has no response; keep only a short pacing delay.
                 sendPacketSafe(OppoPackets.buildHandshake(), "handshake")
-                delay(200)
-                // 先取 productId：命中白名单后 handleOppoPacket 会重建 activeProfile，
-                // 使后续查询与控制都基于正确机型的位图索引。
+                delay(150)
+                // Query product id: await the 0x8103 response. On a whitelist match
+                // handleOppoPacket rebuilds activeProfile and fires the status
+                // queries itself, so no blind waits are needed here.
                 sendPacketSafe(OppoPackets.buildQueryProductId(), "query product id")
-                delay(200)
+                val productIdReceived = awaitResponse(productIdResponse, timeoutMs = 2000)
+                // Query broadcast codes: await the 0x8200 response (its handler subscribes).
                 sendPacketSafe(OppoPackets.buildQueryBroadcastCodes(), "query broadcast codes")
-                delay(300)
-                sendStatusQueryPackets()
-            } else {
-                Log.w(TAG, "Initial RFCOMM connect failed; will retry on the next control/query operation")
+                awaitResponse(broadcastCodesResponse, timeoutMs = 1500)
+                if (!productIdReceived) {
+                    // Fallback status query when 0x8103 missed/timed out (the handler
+                    // already fires it on a successful match, so avoid double-sending).
+                    delay(150)
+                    sendStatusQueryPackets()
+                }
             }
         }
 
@@ -692,6 +699,29 @@ object RfcommController {
                 }
             }
         }
+    }
+
+    /**
+     * Right after A2DP connects the SPP channel may not be ready yet, so the
+     * first attempt often fails. Retry with bounded exponential backoff instead
+     * of a single fixed 500ms delay: 250ms/500ms/1000ms between attempts, up to
+     * 4 tries. If it still fails, later control/query operations reconnect via
+     * sendPacketSafe(allowReconnect=true).
+     */
+    private suspend fun retryRfcommConnect(): Boolean {
+        val maxAttempts = 4
+        val baseDelayMs = 250L
+        for (attempt in 0 until maxAttempts) {
+            val reason = if (attempt == 0) "initial connect" else "initial connect retry #$attempt"
+            if (connectRfcomm(reason)) return true
+            if (attempt < maxAttempts - 1) delay(baseDelayMs * (1L shl attempt))
+        }
+        Log.w(TAG, "Initial RFCOMM connect failed after $maxAttempts attempts; will retry on the next control/query operation")
+        return false
+    }
+
+    private suspend fun awaitResponse(channel: Channel<Unit>, timeoutMs: Long): Boolean {
+        return withTimeoutOrNull(timeoutMs) { channel.receive() } != null
     }
 
     private fun sendExternalPodsStatusBroadcast(action: String, fill: Intent.() -> Unit = {}) {
@@ -867,6 +897,7 @@ object RfcommController {
         val productId = ProductIdParser.parse(packet)
         if (productId != null) {
             Log.d(TAG, "Product id received: $productId")
+            productIdResponse.trySend(Unit)
             val context = mContext
             if (context != null) {
                 val resolved = runCatching {
@@ -973,6 +1004,7 @@ object RfcommController {
         val broadcastCodes = BroadcastCodesParser.parse(packet)
         if (broadcastCodes != null) {
             Log.d(TAG, "Broadcast codes received: $broadcastCodes")
+            broadcastCodesResponse.trySend(Unit)
             CoroutineScope(Dispatchers.IO).launch {
                 delay(100)
                 sendPacketSafe(OppoPackets.buildSubscribeBroadcast(broadcastCodes), "subscribe broadcast")

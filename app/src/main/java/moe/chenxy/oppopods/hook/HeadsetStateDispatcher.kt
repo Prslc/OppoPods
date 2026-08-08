@@ -55,9 +55,10 @@ object HeadsetStateDispatcher : HookContext() {
         }, BluetoothProfile.A2DP)
     }
 
-    // 不同系统版本上 A2dpService 的连接状态回调方法名不一致：
-    // 新版 HyperOS/Android 为 connectionStateChanged，旧版为 handleConnectionStateChanged。
-    // 逐个尝试，失败只跳过该项，避免整个蓝牙进程模块注入崩溃。
+    // The A2dpService connection-state callback name differs across system
+    // versions: connectionStateChanged on newer HyperOS/Android, the older
+    // handleConnectionStateChanged elsewhere. Try each and only skip failures,
+    // so a missing method never crashes the whole bluetooth-process module load.
     private fun hookA2dpConnectionState() {
         val className = "com.android.bluetooth.a2dp.A2dpService"
         val candidateMethods = listOf("connectionStateChanged", "handleConnectionStateChanged")
