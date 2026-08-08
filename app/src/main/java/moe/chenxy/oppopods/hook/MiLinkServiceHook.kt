@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.core.content.edit
 import android.os.SystemClock
 import android.util.Log
 import android.view.View
@@ -1389,9 +1390,9 @@ object MiLinkServiceHook : HookContext() {
                 CustomButtonFunction.fromPreference(prefs.getString(CustomButtonFunction.PREF_KEY, null))
             }.getOrDefault(cached ?: CustomButtonFunction.GAME_MODE)
         }
-        localPrefs?.edit()
-            ?.putString(CustomButtonFunction.PREF_KEY, customButtonFunction.preferenceValue)
-            ?.apply()
+        localPrefs?.edit {
+            putString(CustomButtonFunction.PREF_KEY, customButtonFunction.preferenceValue)
+        }
     }
 
     // 解析自定义按钮位置：intent extra > 本地缓存 > 远程 prefs（默认 UPPER）。
@@ -1409,9 +1410,9 @@ object MiLinkServiceHook : HookContext() {
                 CustomButtonPosition.fromPreference(prefs.getString(CustomButtonPosition.PREF_KEY, null))
             }.getOrDefault(cached ?: CustomButtonPosition.UPPER)
         }
-        localPrefs?.edit()
-            ?.putString(CustomButtonPosition.PREF_KEY, customButtonPosition.preferenceValue)
-            ?.apply()
+        localPrefs?.edit {
+            putString(CustomButtonPosition.PREF_KEY, customButtonPosition.preferenceValue)
+        }
     }
 
     private fun miLinkBatteryLevels(): List<Int> {
@@ -1744,26 +1745,26 @@ object MiLinkServiceHook : HookContext() {
 
     private fun saveState(ctx: Context?) {
         val prefs = (ctx ?: context)?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) ?: return
-        prefs.edit()
-            .putString("address", currentAddress)
-            .putString("name", currentName)
-            .putInt("anc", currentAnc)
-            .putBoolean("game_mode", currentGameMode)
-            .putBoolean("spatial_sound", currentSpatialSound)
-            .putInt("spatial_audio_mode", currentSpatialAudioMode)
-            .putBoolean(OppoPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, milinkSpatialAudioOptionEnabled)
-            .putString(CustomButtonFunction.PREF_KEY, customButtonFunction.preferenceValue)
-            .putString(CustomButtonPosition.PREF_KEY, customButtonPosition.preferenceValue)
-            .putInt("left_battery", currentBattery.left?.battery ?: 0)
-            .putBoolean("left_connected", currentBattery.left?.isConnected == true)
-            .putBoolean("left_charging", currentBattery.left?.isCharging == true)
-            .putInt("right_battery", currentBattery.right?.battery ?: 0)
-            .putBoolean("right_connected", currentBattery.right?.isConnected == true)
-            .putBoolean("right_charging", currentBattery.right?.isCharging == true)
-            .putInt("case_battery", currentBattery.case?.battery ?: 0)
-            .putBoolean("case_connected", currentBattery.case?.isConnected == true)
-            .putBoolean("case_charging", currentBattery.case?.isCharging == true)
-            .apply()
+        prefs.edit {
+            putString("address", currentAddress)
+            putString("name", currentName)
+            putInt("anc", currentAnc)
+            putBoolean("game_mode", currentGameMode)
+            putBoolean("spatial_sound", currentSpatialSound)
+            putInt("spatial_audio_mode", currentSpatialAudioMode)
+            putBoolean(OppoPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, milinkSpatialAudioOptionEnabled)
+            putString(CustomButtonFunction.PREF_KEY, customButtonFunction.preferenceValue)
+            putString(CustomButtonPosition.PREF_KEY, customButtonPosition.preferenceValue)
+            putInt("left_battery", currentBattery.left?.battery ?: 0)
+            putBoolean("left_connected", currentBattery.left?.isConnected == true)
+            putBoolean("left_charging", currentBattery.left?.isCharging == true)
+            putInt("right_battery", currentBattery.right?.battery ?: 0)
+            putBoolean("right_connected", currentBattery.right?.isConnected == true)
+            putBoolean("right_charging", currentBattery.right?.isCharging == true)
+            putInt("case_battery", currentBattery.case?.battery ?: 0)
+            putBoolean("case_connected", currentBattery.case?.isConnected == true)
+            putBoolean("case_charging", currentBattery.case?.isCharging == true)
+        }
     }
 
     private fun loadState() {

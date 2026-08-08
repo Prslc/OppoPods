@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +42,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberDecoratedNavEntries
@@ -100,7 +102,7 @@ sealed interface Screen : NavKey {
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "MissingPermission")
 @Composable
 fun MainUI(
-    themeMode: MutableState<Int> = mutableStateOf(0),
+    themeMode: MutableState<Int> = mutableIntStateOf(0),
     onThemeModeChange: (Int) -> Unit = {}
 ) {
     val backStack = remember { mutableStateListOf<Screen>(Screen.Home) }
@@ -111,12 +113,12 @@ fun MainUI(
     val ancMode = remember { mutableStateOf(NoiseControlMode.OFF) }
     val hookConnected = remember { mutableStateOf(false) }
     val gameMode = remember { mutableStateOf(false) }
-    val hookEqPresetId = remember { mutableStateOf(-1) }
+    val hookEqPresetId = remember { mutableIntStateOf(-1) }
     val hookDeviceEqPresets = remember { mutableStateOf<List<EqDevicePreset>>(emptyList()) }
-    val spatialAudioMode = remember { mutableStateOf(SpatialAudioMode.OFF) }
+    val spatialAudioMode = remember { mutableIntStateOf(SpatialAudioMode.OFF) }
     val spatialSound = remember { mutableStateOf(false) }
-    val noiseLevel = remember { mutableStateOf(moe.chenxy.oppopods.pods.NoiseLevel.DEEP) }
-    val smartAncLevel = remember { mutableStateOf(-1) }
+    val noiseLevel = remember { mutableIntStateOf(moe.chenxy.oppopods.pods.NoiseLevel.DEEP) }
+    val smartAncLevel = remember { mutableIntStateOf(-1) }
     val autoPlayPause = remember { mutableStateOf(false) }
     val dualDevice = remember { mutableStateOf(false) }
     val hookConnectedDevices = remember { mutableStateOf<List<moe.chenxy.oppopods.pods.ConnectedDevice>>(emptyList()) }
@@ -172,7 +174,7 @@ fun MainUI(
         )
     }
     val connectionPopupDismissSeconds = remember {
-        mutableStateOf(
+        mutableIntStateOf(
             prefs.getInt(
                 OppoPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECONDS,
                 OppoPodsPrefsKey.DEFAULT_CONNECTION_POPUP_DISMISS_SECONDS
@@ -255,12 +257,12 @@ fun MainUI(
     } else {
         hookDeviceEqPresets.value
     }
-    val displayEqPresetId = if (isStandaloneConnected) appEqPresetId else hookEqPresetId.value
+    val displayEqPresetId = if (isStandaloneConnected) appEqPresetId else hookEqPresetId.intValue
     val displayEqCurrentName = displayEqPresets.firstOrNull { it.id == displayEqPresetId }?.name.orEmpty()
-    val displaySpatialAudioMode = if (isStandaloneConnected) appSpatialAudioMode else spatialAudioMode.value
+    val displaySpatialAudioMode = if (isStandaloneConnected) appSpatialAudioMode else spatialAudioMode.intValue
     val displaySpatialSound = if (isStandaloneConnected) appSpatialSound else spatialSound.value
-    val displayNoiseLevel = if (isStandaloneConnected) appNoiseLevel else noiseLevel.value
-    val displaySmartAncLevel = if (isStandaloneConnected) appSmartAncLevel else smartAncLevel.value
+    val displayNoiseLevel = if (isStandaloneConnected) appNoiseLevel else noiseLevel.intValue
+    val displaySmartAncLevel = if (isStandaloneConnected) appSmartAncLevel else smartAncLevel.intValue
     val displayAutoPlayPause = if (isStandaloneConnected) appAutoPlayPause else autoPlayPause.value
     val displayDualDevice = if (isStandaloneConnected) appDualDevice else dualDevice.value
     val displayConnectedDevices = if (isStandaloneConnected) appConnectedDevices else hookConnectedDevices.value
@@ -304,7 +306,7 @@ fun MainUI(
                     }
 
                     OppoPodsAction.ACTION_PODS_EQ_PRESET_CHANGED -> {
-                        hookEqPresetId.value = p1.getIntExtra("id", -1)
+                        hookEqPresetId.intValue = p1.getIntExtra("id", -1)
                         val entriesJson = p1.getStringExtra(OppoPodsAction.EXTRA_EQ_ENTRIES_JSON)
                         hookDeviceEqPresets.value = if (entriesJson != null) {
                             DeviceProfileStore.parseEqEntries(entriesJson)
@@ -327,7 +329,7 @@ fun MainUI(
                     }
 
                     OppoPodsAction.ACTION_PODS_SPATIAL_AUDIO_CHANGED -> {
-                        spatialAudioMode.value = p1.getIntExtra("mode", SpatialAudioMode.OFF)
+                        spatialAudioMode.intValue = p1.getIntExtra("mode", SpatialAudioMode.OFF)
                             .coerceIn(SpatialAudioMode.OFF, SpatialAudioMode.HEAD_TRACKING)
                     }
 
@@ -336,11 +338,11 @@ fun MainUI(
                     }
 
                     OppoPodsAction.ACTION_PODS_NOISE_LEVEL_CHANGED -> {
-                        noiseLevel.value = p1.getIntExtra("level", moe.chenxy.oppopods.pods.NoiseLevel.DEEP)
+                        noiseLevel.intValue = p1.getIntExtra("level", moe.chenxy.oppopods.pods.NoiseLevel.DEEP)
                     }
 
                     OppoPodsAction.ACTION_PODS_SMART_ANC_LEVEL_CHANGED -> {
-                        smartAncLevel.value = p1.getIntExtra("level", -1)
+                        smartAncLevel.intValue = p1.getIntExtra("level", -1)
                     }
 
                     OppoPodsAction.ACTION_PODS_AUTO_PLAY_PAUSE_CHANGED -> {
@@ -362,7 +364,7 @@ fun MainUI(
                     OppoPodsAction.ACTION_PODS_CONNECTED -> {
                         val deviceName = p1.getStringExtra("device_name")
                         mainTitle.value = deviceName ?: ""
-                        hookEqPresetId.value = -1
+                        hookEqPresetId.intValue = -1
                         hookDeviceEqPresets.value = emptyList()
                         if (!deviceName.isNullOrBlank()) {
                             runCatching {
@@ -376,7 +378,7 @@ fun MainUI(
                     OppoPodsAction.ACTION_PODS_DISCONNECTED -> {
                         mainTitle.value = ""
                         hookConnected.value = false
-                        hookEqPresetId.value = -1
+                        hookEqPresetId.intValue = -1
                         hookDeviceEqPresets.value = emptyList()
                         if (p0 is MainActivity) {
                             p0.finish()
@@ -467,7 +469,7 @@ fun MainUI(
             appController.setEqPreset(id)
             return
         }
-        hookEqPresetId.value = id
+        hookEqPresetId.intValue = id
         context.sendBroadcast(Intent(OppoPodsAction.ACTION_EQ_PRESET_SET).apply {
             putExtra("id", id)
             setPackage("com.android.bluetooth")
@@ -520,7 +522,7 @@ fun MainUI(
             appController.setSpatialAudioMode(normalizedMode)
             return
         }
-        spatialAudioMode.value = normalizedMode
+        spatialAudioMode.intValue = normalizedMode
         Intent(OppoPodsAction.ACTION_SPATIAL_AUDIO_SET).apply {
             this.putExtra("mode", normalizedMode)
             setPackage("com.android.bluetooth")
@@ -546,7 +548,7 @@ fun MainUI(
             appController.setNoiseLevel(level)
             return
         }
-        noiseLevel.value = level
+        noiseLevel.intValue = level
         Intent(OppoPodsAction.ACTION_NOISE_LEVEL_SET).apply {
             this.putExtra("level", level)
             setPackage("com.android.bluetooth")
@@ -657,9 +659,9 @@ fun MainUI(
         hiddenValue = false,
         onValueChange = { enabled ->
             milinkSpatialAudioOptionEnabled.value = enabled
-            prefs.edit()
-                .putBoolean(OppoPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, enabled)
-                .commit()
+            prefs.edit {
+                putBoolean(OppoPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, enabled)
+            }
             broadcastMilinkSpatialAudioOption(enabled)
         }
     )
@@ -695,7 +697,7 @@ fun MainUI(
     }
 
     // Each entry has its own Scaffold+TopAppBar so the full page transitions together
-    val entryProvider = entryProvider<Screen> {
+    val entryProvider = entryProvider {
         entry<Screen.Home> {
             val homeTitle = mainTitle.value.ifEmpty { stringResource(R.string.app_name) }
             val topAppBarScrollBehavior = MiuixScrollBehavior(rememberTopAppBarState())
@@ -887,13 +889,13 @@ fun MainUI(
                     showConnectionBatteryIsland = showConnectionBatteryIsland,
                     onShowConnectionBatteryIslandChange = {
                         showConnectionBatteryIsland.value = it
-                        prefs.edit()
-                            .putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_BATTERY_ISLAND, it)
-                            .commit()
+                        prefs.edit {
+                            putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_BATTERY_ISLAND, it)
+                        }
                         broadcastNotificationSettings(
                             it,
                             showConnectionPopup.value,
-                            connectionPopupDismissSeconds.value,
+                            connectionPopupDismissSeconds.intValue,
                             showConnectionNotification.value,
                             notificationIslandStyle.value
                         )
@@ -901,13 +903,13 @@ fun MainUI(
                     showConnectionNotification = showConnectionNotification,
                     onShowConnectionNotificationChange = {
                         showConnectionNotification.value = it
-                        prefs.edit()
-                            .putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_NOTIFICATION, it)
-                            .commit()
+                        prefs.edit {
+                            putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_NOTIFICATION, it)
+                        }
                         broadcastNotificationSettings(
                             showConnectionBatteryIsland.value,
                             showConnectionPopup.value,
-                            connectionPopupDismissSeconds.value,
+                            connectionPopupDismissSeconds.intValue,
                             it,
                             notificationIslandStyle.value
                         )
@@ -915,13 +917,13 @@ fun MainUI(
                     notificationIslandStyle = notificationIslandStyle,
                     onNotificationIslandStyleChange = {
                         notificationIslandStyle.value = it
-                        prefs.edit()
-                            .putBoolean(OppoPodsPrefsKey.NOTIFICATION_ISLAND_STYLE, it)
-                            .commit()
+                        prefs.edit {
+                            putBoolean(OppoPodsPrefsKey.NOTIFICATION_ISLAND_STYLE, it)
+                        }
                         broadcastNotificationSettings(
                             showConnectionBatteryIsland.value,
                             showConnectionPopup.value,
-                            connectionPopupDismissSeconds.value,
+                            connectionPopupDismissSeconds.intValue,
                             showConnectionNotification.value,
                             it
                         )
@@ -1001,14 +1003,14 @@ fun MainUI(
                     openHeyTap = openHeyTap,
                     onOpenHeyTapChange = {
                         openHeyTap.value = it
-                        prefs.edit().putBoolean("open_heytap", it).apply()
+                        prefs.edit { putBoolean("open_heytap", it) }
                     },
                     rfcommConnectionMethod = rfcommConnectionMethod,
                     onRfcommConnectionMethodChange = {
                         rfcommConnectionMethod.value = it
-                        prefs.edit()
-                            .putString(RfcommConnectionMethod.PREF_KEY, it.preferenceValue)
-                            .apply()
+                        prefs.edit {
+                            putString(RfcommConnectionMethod.PREF_KEY, it.preferenceValue)
+                        }
                     },
                     adaptiveVisible = activeProfile.value.adaptiveVisible,
                     spatialAudioVisible = activeProfile.value.spatialAudioVisible,
@@ -1016,23 +1018,23 @@ fun MainUI(
                     showConnectionPopup = showConnectionPopup,
                     onShowConnectionPopupChange = {
                         showConnectionPopup.value = it
-                        prefs.edit()
-                            .putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_POPUP, it)
-                            .commit()
+                        prefs.edit {
+                            putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_POPUP, it)
+                        }
                         broadcastNotificationSettings(
                             showConnectionBatteryIsland.value,
                             it,
-                            connectionPopupDismissSeconds.value,
+                            connectionPopupDismissSeconds.intValue,
                             showConnectionNotification.value,
                             notificationIslandStyle.value
                         )
                     },
                     connectionPopupDismissSeconds = connectionPopupDismissSeconds,
                     onConnectionPopupDismissSecondsChange = {
-                        connectionPopupDismissSeconds.value = it
-                        prefs.edit()
-                            .putInt(OppoPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECONDS, it)
-                            .commit()
+                        connectionPopupDismissSeconds.intValue = it
+                        prefs.edit {
+                            putInt(OppoPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECONDS, it)
+                        }
                         broadcastNotificationSettings(
                             showConnectionBatteryIsland.value,
                             showConnectionPopup.value,
@@ -1044,25 +1046,25 @@ fun MainUI(
                     milinkSpatialAudioOptionEnabled = milinkSpatialAudioOptionEnabled,
                     onMilinkSpatialAudioOptionEnabledChange = {
                         milinkSpatialAudioOptionEnabled.value = it
-                        prefs.edit()
-                            .putBoolean(OppoPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, it)
-                            .commit()
+                        prefs.edit {
+                            putBoolean(OppoPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, it)
+                        }
                         broadcastMilinkSpatialAudioOption(it)
                     },
                     customButtonFunction = customButtonFunction,
                     onCustomButtonFunctionChange = {
                         customButtonFunction.value = it
-                        prefs.edit()
-                            .putString(CustomButtonFunction.PREF_KEY, it.preferenceValue)
-                            .commit()
+                        prefs.edit {
+                            putString(CustomButtonFunction.PREF_KEY, it.preferenceValue)
+                        }
                         broadcastCustomButtonFunction(it.preferenceValue)
                     },
                     customButtonPosition = customButtonPosition,
                     onCustomButtonPositionChange = {
                         customButtonPosition.value = it
-                        prefs.edit()
-                            .putString(CustomButtonPosition.PREF_KEY, it.preferenceValue)
-                            .commit()
+                        prefs.edit {
+                            putString(CustomButtonPosition.PREF_KEY, it.preferenceValue)
+                        }
                         broadcastCustomButtonPosition(it.preferenceValue)
                     }
                 )
@@ -1074,7 +1076,7 @@ fun MainUI(
                 debugMode = debugMode.value,
                 onDebugModeChanged = { enabled ->
                     debugMode.value = enabled
-                    prefs.edit().putBoolean("debug_mode", enabled).commit()
+                    prefs.edit { putBoolean("debug_mode", enabled) }
                 }
             )
         }
@@ -1148,7 +1150,7 @@ fun MainUI(
                     onLoggingEnabledChange = {
                         loggingEnabled.value = it
                         BtLogStore.isEnabled = it
-                        prefs.edit().putBoolean("bt_logging_enabled", it).commit()
+                        prefs.edit { putBoolean("bt_logging_enabled", it) }
                         if (it) {
                             BtLogStore.addRecv(byteArrayOf(), "日志已启用，等待蓝牙数据...")
                         }

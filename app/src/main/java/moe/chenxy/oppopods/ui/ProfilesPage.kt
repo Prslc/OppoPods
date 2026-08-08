@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -70,7 +71,7 @@ fun ProfilesPage(
     val pickFailed = remember { mutableStateOf(false) }
 
     // 素材变动后自增，用来让下面的「已自定义/默认」标签重新读取磁盘状态。
-    var imageRevision by remember { mutableStateOf(0) }
+    var imageRevision by remember { mutableIntStateOf(0) }
     var pendingSlot by remember { mutableStateOf<PodImageSlot?>(null) }
 
     val selectedModelName = remember(selectedModelId, allModels) {

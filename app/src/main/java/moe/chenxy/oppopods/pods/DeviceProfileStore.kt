@@ -3,6 +3,7 @@ package moe.chenxy.oppopods.pods
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsPrefsKey
@@ -97,7 +98,7 @@ object DeviceProfileStore {
         ProfileMode.fromPreference(prefs.getString(OppoPodsPrefsKey.PROFILE_MODE, null))
 
     fun setProfileMode(prefs: SharedPreferences, mode: ProfileMode) {
-        prefs.edit().putString(OppoPodsPrefsKey.PROFILE_MODE, mode.preferenceValue).apply()
+        prefs.edit { putString(OppoPodsPrefsKey.PROFILE_MODE, mode.preferenceValue) }
     }
 
     /** 手动模式下选中的白名单 productId；未选则为 null。 */
@@ -105,7 +106,7 @@ object DeviceProfileStore {
         prefs.getString(OppoPodsPrefsKey.SELECTED_MODEL_ID, null)?.takeIf { it.isNotBlank() }
 
     fun setSelectedModelId(prefs: SharedPreferences, modelId: String) {
-        prefs.edit().putString(OppoPodsPrefsKey.SELECTED_MODEL_ID, modelId).apply()
+        prefs.edit { putString(OppoPodsPrefsKey.SELECTED_MODEL_ID, modelId) }
     }
 
     /**

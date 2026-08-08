@@ -2,6 +2,7 @@ package moe.chenxy.oppopods.utils.miuiStrongToast.data
 
 import android.content.Intent
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 data class NotificationSettings(
     val showConnectionBatteryIsland: Boolean = OppoPodsPrefsKey.DEFAULT_SHOW_CONNECTION_BATTERY_ISLAND,
@@ -23,19 +24,14 @@ data class NotificationSettings(
         intent.putExtra(OppoPodsPrefsKey.NOTIFICATION_SETTINGS_UPDATED_AT, updatedAt)
     }
 
-    fun writeToPrefs(prefs: SharedPreferences, commit: Boolean = false): Boolean {
-        val editor = prefs.edit()
-        editor.putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_BATTERY_ISLAND, showConnectionBatteryIsland)
-        editor.putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_POPUP, showConnectionPopup)
-        editor.putInt(OppoPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECONDS, connectionPopupDismissSeconds)
-        editor.putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_NOTIFICATION, showConnectionNotification)
-        editor.putBoolean(OppoPodsPrefsKey.NOTIFICATION_ISLAND_STYLE, notificationIslandStyle)
-        editor.putLong(OppoPodsPrefsKey.NOTIFICATION_SETTINGS_UPDATED_AT, updatedAt)
-        return if (commit) {
-            editor.commit()
-        } else {
-            editor.apply()
-            true
+    fun writeToPrefs(prefs: SharedPreferences, commit: Boolean = false) {
+        prefs.edit(commit = commit) {
+            putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_BATTERY_ISLAND, showConnectionBatteryIsland)
+            putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_POPUP, showConnectionPopup)
+            putInt(OppoPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECONDS, connectionPopupDismissSeconds)
+            putBoolean(OppoPodsPrefsKey.SHOW_CONNECTION_NOTIFICATION, showConnectionNotification)
+            putBoolean(OppoPodsPrefsKey.NOTIFICATION_ISLAND_STYLE, notificationIslandStyle)
+            putLong(OppoPodsPrefsKey.NOTIFICATION_SETTINGS_UPDATED_AT, updatedAt)
         }
     }
 

@@ -102,7 +102,7 @@ import androidx.compose.ui.unit.LayoutDirection
 fun SettingsPage(
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    themeMode: MutableState<Int> = mutableStateOf(0),
+    themeMode: MutableState<Int> = mutableIntStateOf(0),
     onThemeModeChange: (Int) -> Unit = {},
     showConnectionBatteryIsland: MutableState<Boolean> =
         mutableStateOf(OppoPodsPrefsKey.DEFAULT_SHOW_CONNECTION_BATTERY_ISLAND),
@@ -215,7 +215,7 @@ fun AdvancedSettingsPage(
         mutableStateOf(OppoPodsPrefsKey.DEFAULT_SHOW_CONNECTION_POPUP),
     onShowConnectionPopupChange: (Boolean) -> Unit = {},
     connectionPopupDismissSeconds: MutableState<Int> =
-        mutableStateOf(OppoPodsPrefsKey.DEFAULT_CONNECTION_POPUP_DISMISS_SECONDS),
+        mutableIntStateOf(OppoPodsPrefsKey.DEFAULT_CONNECTION_POPUP_DISMISS_SECONDS),
     onConnectionPopupDismissSecondsChange: (Int) -> Unit = {},
     milinkSpatialAudioOptionEnabled: MutableState<Boolean> =
         mutableStateOf(OppoPodsPrefsKey.DEFAULT_MILINK_SPATIAL_AUDIO_OPTION_ENABLED),

@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.core.content.edit
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.MilinkSpatialAudioOptionSettings
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.PodParams
@@ -655,21 +656,21 @@ object SettingsHeadsetHook : HookContext() {
 
     private fun saveState(ctx: Context?) {
         val prefs = (ctx ?: context)?.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) ?: return
-        prefs.edit()
-            .putString("address", currentAddress)
-            .putString("name", currentName)
-            .putInt("anc", currentAnc)
-            .putBoolean(OppoPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, milinkSpatialAudioOptionEnabled)
-            .putInt("left_battery", currentBattery.left?.battery ?: 0)
-            .putBoolean("left_charging", currentBattery.left?.isCharging == true)
-            .putBoolean("left_connected", currentBattery.left?.isConnected == true)
-            .putInt("right_battery", currentBattery.right?.battery ?: 0)
-            .putBoolean("right_charging", currentBattery.right?.isCharging == true)
-            .putBoolean("right_connected", currentBattery.right?.isConnected == true)
-            .putInt("case_battery", currentBattery.case?.battery ?: 0)
-            .putBoolean("case_charging", currentBattery.case?.isCharging == true)
-            .putBoolean("case_connected", currentBattery.case?.isConnected == true)
-            .apply()
+        prefs.edit {
+            putString("address", currentAddress)
+            putString("name", currentName)
+            putInt("anc", currentAnc)
+            putBoolean(OppoPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, milinkSpatialAudioOptionEnabled)
+            putInt("left_battery", currentBattery.left?.battery ?: 0)
+            putBoolean("left_charging", currentBattery.left?.isCharging == true)
+            putBoolean("left_connected", currentBattery.left?.isConnected == true)
+            putInt("right_battery", currentBattery.right?.battery ?: 0)
+            putBoolean("right_charging", currentBattery.right?.isCharging == true)
+            putBoolean("right_connected", currentBattery.right?.isConnected == true)
+            putInt("case_battery", currentBattery.case?.battery ?: 0)
+            putBoolean("case_charging", currentBattery.case?.isCharging == true)
+            putBoolean("case_connected", currentBattery.case?.isConnected == true)
+        }
     }
 
     private fun loadState() {

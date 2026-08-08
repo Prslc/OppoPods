@@ -3,6 +3,7 @@ package moe.chenxy.oppopods.utils.miuiStrongToast.data
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 object MilinkSpatialAudioOptionSettings {
     fun resolveAndCache(
@@ -46,9 +47,9 @@ object MilinkSpatialAudioOptionSettings {
             }
         }
 
-        localPrefs?.edit()
-            ?.putBoolean(OppoPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, resolved)
-            ?.apply()
+        localPrefs?.edit {
+            putBoolean(OppoPodsPrefsKey.MILINK_SPATIAL_AUDIO_OPTION_ENABLED, resolved)
+        }
         return resolved
     }
 }
