@@ -43,6 +43,8 @@ object MiBluetoothToastHook : HookContext() {
     // ANC 模式本地缓存，用于循环切换和状态同步（1=关 2=降噪 3=通透 4=自适应）
     // 通过接收 ACTION_PODS_ANC_CHANGED 广播与 RfcommController 保持同步
     private var localAncMode = 1
+    // 每个地址最近一次有效电量（左/右/盒），部件断开或盒子取出后通知仍显示上次值
+    private val knownBatteries = mutableMapOf<String, Array<PodParams?>>()
     private var notificationReceiver: BroadcastReceiver? = null
     private var notificationReceiverContext: Context? = null
 
@@ -81,6 +83,7 @@ object MiBluetoothToastHook : HookContext() {
                     .mapNotNull { it.tag }
                     .forEach { cancelNotificationByTag(notificationManager, it) }
                 lastNotificationIslandStyle.clear()
+                knownBatteries.clear()
                 lastNotificationDevice = null
                 lastNotificationBatteryParams = null
             } catch (e: Exception) {
@@ -172,6 +175,17 @@ object MiBluetoothToastHook : HookContext() {
                 } else {
                     "${alias ?: ""}（已断开）"
                 }
+                val batteryCache = knownBatteries.getOrPut(address) { arrayOfNulls(3) }
+                fun displayBattery(index: Int, pod: PodParams?): PodParams? {
+                    if (pod != null && (pod.isConnected || pod.battery > 0)) {
+                        batteryCache[index] = pod.copy()
+                        return pod
+                    }
+                    return batteryCache[index]
+                }
+                val displayLeft = displayBattery(0, batteryParams.left)
+                val displayRight = displayBattery(1, batteryParams.right)
+                val displayCase = displayBattery(2, batteryParams.case)
 
                 val caseBattStr = if (batteryParams.case != null && batteryParams.case!!.isConnected)
                     "${context.resources.getString(miheadset_notification_Box)}：${batteryParams.case!!.battery} %" +
@@ -244,46 +258,53 @@ object MiBluetoothToastHook : HookContext() {
                         rowId: Int,
                         iconId: Int,
                         pctId: Int,
-                        pod: PodParams?
+                        pod: PodParams?,
+                        currentlyConnected: Boolean
                     ): Boolean {
-                        val connected = pod?.isConnected == true
-                        big.setViewVisibility(rowId, if (connected) View.VISIBLE else View.GONE)
-                        if (connected && pod != null) {
-                            big.setTextViewText(pctId, "${pod.battery}%")
-                            big.setImageViewResource(
-                                iconId,
-                                BatteryIconRes.forLevel(pod.battery, pod.isCharging)
-                            )
-                        }
-                        return connected
+                        val level = pod?.battery ?: 0
+                        // Keep the last-known level visible after a part stops reporting
+                        // (e.g. the case lid closes); only show "-" when no data exists.
+                        val hasData = pod != null && (currentlyConnected || level > 0)
+                        big.setViewVisibility(rowId, View.VISIBLE)
+                        big.setTextViewText(pctId, if (hasData) "$level%" else "-")
+                        val iconLevel = if (hasData) level else 100
+                        val iconCharging = currentlyConnected && pod?.isCharging == true
+                        big.setImageViewResource(
+                            iconId,
+                            BatteryIconRes.forLevel(iconLevel, iconCharging)
+                        )
+                        return hasData
                     }
 
                     val leftConnected = bindBattery(
                         R.id.row_notification_left,
                         R.id.iv_notification_left_battery,
                         R.id.tv_notification_left_pct,
-                        batteryParams.left
+                        displayLeft,
+                        batteryParams.left?.isConnected == true
                     )
                     val rightConnected = bindBattery(
                         R.id.row_notification_right,
                         R.id.iv_notification_right_battery,
                         R.id.tv_notification_right_pct,
-                        batteryParams.right
+                        displayRight,
+                        batteryParams.right?.isConnected == true
                     )
                     val caseConnected = bindBattery(
                         R.id.row_notification_case,
                         R.id.iv_notification_case_battery,
                         R.id.tv_notification_case_pct,
-                        batteryParams.case
+                        displayCase,
+                        batteryParams.case?.isConnected == true
                     )
 
                     val stateParts = mutableListOf<String>()
                     if (leftConnected) stateParts +=
-                        "${moduleContext.getString(R.string.connection_popup_left_ear)} ${batteryParams.left!!.battery}%"
+                        "${moduleContext.getString(R.string.connection_popup_left_ear)} ${displayLeft?.battery ?: 0}%"
                     if (rightConnected) stateParts +=
-                        "${moduleContext.getString(R.string.connection_popup_right_ear)} ${batteryParams.right!!.battery}%"
+                        "${moduleContext.getString(R.string.connection_popup_right_ear)} ${displayRight?.battery ?: 0}%"
                     if (caseConnected) stateParts +=
-                        "${moduleContext.getString(R.string.connection_popup_case)} ${batteryParams.case!!.battery}%"
+                        "${moduleContext.getString(R.string.connection_popup_case)} ${displayCase?.battery ?: 0}%"
                     small.setTextViewText(
                         R.id.tv_notification_small_state,
                         stateParts.joinToString("  ")
@@ -394,9 +415,9 @@ object MiBluetoothToastHook : HookContext() {
                 if (focusExtras != null) {
                     val aodParts = mutableListOf<String>()
                     if (batteryParams.left?.isConnected == true)
-                        aodParts.add("L ${batteryParams.left!!.battery}%")
+                        aodParts.add("L ${displayLeft?.battery ?: 0}%")
                     if (batteryParams.right?.isConnected == true)
-                        aodParts.add("R ${batteryParams.right!!.battery}%")
+                        aodParts.add("R ${displayRight?.battery ?: 0}%")
                     val aodTitle = aodParts.joinToString(" | ")
                     try {
                         val json = org.json.JSONObject(focusExtras.getString("miui.focus.param") ?: "{}")
@@ -451,6 +472,7 @@ object MiBluetoothToastHook : HookContext() {
                     cancelNotificationByTag(notificationManager, notificationTag(address))
                     cancelNotificationByTag(notificationManager, legacyIslandNotificationTag(address))
                     lastNotificationIslandStyle.remove(address)
+                    knownBatteries.remove(address)
                     lastNotificationDevice = null
                     lastNotificationBatteryParams = null
                 }
