@@ -15,7 +15,6 @@ import android.view.Surface
 import android.view.TextureView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +22,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,12 +31,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -46,9 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -164,67 +159,51 @@ private fun ConnectionPopupCard(
     onDismiss: () -> Unit
 ) {
     val isDark = isSystemInDarkTheme()
-    // 产品视频自带白色背景，深色模式下把它作为一块独立的浅色媒体面板呈现
-    val videoBackgroundColor = Color(0xFFFBFBFB)
-    val containerColor = if (isDark) MiuixTheme.colorScheme.background else videoBackgroundColor
-    val textColor = if (isDark) MiuixTheme.colorScheme.onSurface else Color(0xFF111111)
-    val secondaryTextColor =
-        if (isDark) MiuixTheme.colorScheme.onSurfaceVariantSummary else Color(0xFF333333)
-    val closeButtonColor =
-        if (isDark) MiuixTheme.colorScheme.surfaceContainerHighest else Color(0xFFF1F1F1)
-    val closeIconColor =
-        if (isDark) MiuixTheme.colorScheme.onSurfaceVariantSummary else Color(0xFF8B8B8B)
-    val doneButtonColor =
-        if (isDark) MiuixTheme.colorScheme.surfaceContainerHighest else Color(0xFFF2F2F2)
+    // 与 HyperOS 原生连接弹窗（fastconnect.MiuiFastConnectActivity）对齐
+    val videoBackgroundColor = Color(0xFFFFFFFF)
+    val containerColor = if (isDark) Color(0xFF242424) else videoBackgroundColor
+    val textColor = if (isDark) Color(0xE5FFFFFF) else Color(0xFF000000)
+    val secondaryTextColor = if (isDark) Color(0xCCFFFFFF) else Color(0x99000000)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.34f))
-            .navigationBarsPadding()
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 6.dp),
+            .background(Color.Black.copy(alpha = 0.3f)),
         contentAlignment = Alignment.BottomCenter
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .widthIn(max = 430.dp)
-                .clip(RoundedCornerShape(55.dp))
+                .padding(horizontal = 12.dp)
+                .padding(bottom = 12.dp)
+                .clip(RoundedCornerShape(32.dp))
                 .background(containerColor)
         ) {
-            CloseButton(
-                onClick = onDismiss,
-                buttonColor = closeButtonColor,
-                iconColor = closeIconColor,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 22.dp, end = 22.dp)
-            )
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 29.dp, bottom = 31.dp),
+                    .padding(top = 46.67.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 BasicText(
                     text = deviceName,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 75.dp),
+                        .padding(horizontal = 24.dp),
                     style = TextStyle(
                         color = textColor,
-                        fontSize = 19.sp,
+                        fontSize = 20.sp,
                         lineHeight = 25.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                Spacer(modifier = Modifier.height(38.dp))
+                Spacer(modifier = Modifier.height(18.3.dp))
                 // 内置视频是白底 mp4，深色模式下改用官方透明底渲染图，避免整块白色面板；
                 // 用户自定义视频无法重新着色，仍放在圆角浅色媒体面板中。
                 if (isDark && videoFile?.exists() != true) {
@@ -232,7 +211,7 @@ private fun ConnectionPopupCard(
                         painter = painterResource(R.drawable.img_connection_dark),
                         contentDescription = null,
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .fillMaxWidth(0.95f)
                             .aspectRatio(960f / 312f),
                         contentScale = ContentScale.Fit
                     )
@@ -240,9 +219,8 @@ private fun ConnectionPopupCard(
                     ConnectionVideo(
                         modifier = if (isDark) {
                             Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp)
-                                .clip(RoundedCornerShape(34.dp))
+                                .fillMaxWidth(0.95f)
+                                .clip(RoundedCornerShape(16.dp))
                                 .aspectRatio(960f / 312f)
                         } else {
                             Modifier
@@ -252,56 +230,21 @@ private fun ConnectionPopupCard(
                         videoFile = videoFile
                     )
                 }
-                Spacer(modifier = Modifier.height(22.dp))
+                Spacer(modifier = Modifier.height(45.dp))
 
-                BatterySummary(
+                BatteryColumns(
                     batteryParams = batteryParams,
                     textColor = secondaryTextColor
                 )
 
-                Spacer(modifier = Modifier.height(52.dp))
+                Spacer(modifier = Modifier.height(42.6.dp))
                 DoneButton(
                     onClick = onDismiss,
-                    containerColor = doneButtonColor,
-                    textColor = textColor,
-                    modifier = Modifier.padding(horizontal = 30.dp)
+                    containerColor = MiuixTheme.colorScheme.primary,
+                    textColor = Color.White,
+                    modifier = Modifier.padding(horizontal = 24.dp)
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun CloseButton(
-    onClick: () -> Unit,
-    buttonColor: Color = Color(0xFFF1F1F1),
-    iconColor: Color = Color(0xFF8B8B8B),
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .size(27.dp)
-            .clip(CircleShape)
-            .background(buttonColor)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Canvas(modifier = Modifier.size(9.dp)) {
-            val strokeWidth = 2.8.dp.toPx()
-            drawLine(
-                color = iconColor,
-                start = Offset(1.dp.toPx(), 1.dp.toPx()),
-                end = Offset(size.width - 1.dp.toPx(), size.height - 1.dp.toPx()),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
-            drawLine(
-                color = iconColor,
-                start = Offset(size.width - 1.dp.toPx(), 1.dp.toPx()),
-                end = Offset(1.dp.toPx(), size.height - 1.dp.toPx()),
-                strokeWidth = strokeWidth,
-                cap = StrokeCap.Round
-            )
         }
     }
 }
@@ -309,7 +252,7 @@ private fun CloseButton(
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 private fun ConnectionVideo(modifier: Modifier = Modifier, videoFile: java.io.File? = null) {
-    Box(modifier = modifier.background(Color(0xFFFBFBFB))) {
+    Box(modifier = modifier.background(Color(0xFFFFFFFF))) {
         AndroidView(
             modifier = Modifier.fillMaxSize(),
             factory = { context ->
@@ -320,15 +263,15 @@ private fun ConnectionVideo(modifier: Modifier = Modifier, videoFile: java.io.Fi
 }
 
 @Composable
-private fun BatterySummary(
+private fun BatteryColumns(
     batteryParams: BatteryParams,
     textColor: Color
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val leftColumnWidth = 104.dp
-        val caseColumnWidth = 84.dp
-        val leftCenter = maxWidth * 0.263f
-        val caseCenter = maxWidth * 0.718f
+        val leftColumnWidth = 116.dp
+        val caseColumnWidth = 116.dp
+        val leftCenter = maxWidth * 0.31f
+        val caseCenter = maxWidth * 0.69f
 
         Column(
             modifier = Modifier
@@ -337,12 +280,12 @@ private fun BatterySummary(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            BatteryLine(
+            BatteryChip(
                 label = stringResource(R.string.connection_popup_left_ear),
                 pod = batteryParams.left,
                 textColor = textColor
             )
-            BatteryLine(
+            BatteryChip(
                 label = stringResource(R.string.connection_popup_right_ear),
                 pod = batteryParams.right,
                 textColor = textColor
@@ -354,7 +297,7 @@ private fun BatterySummary(
                 .offset(x = caseCenter - caseColumnWidth / 2),
             contentAlignment = Alignment.TopCenter
         ) {
-            BatteryLine(
+            BatteryChip(
                 label = stringResource(R.string.connection_popup_case),
                 pod = batteryParams.case,
                 textColor = textColor
@@ -364,7 +307,7 @@ private fun BatterySummary(
 }
 
 @Composable
-private fun BatteryLine(
+private fun BatteryChip(
     label: String,
     pod: PodParams?,
     textColor: Color
@@ -387,28 +330,35 @@ private fun BatteryLine(
     Row(verticalAlignment = Alignment.CenterVertically) {
         BasicText(
             text = label,
+            modifier = Modifier.width(38.dp),
             style = TextStyle(
                 color = textColor,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                fontWeight = FontWeight.Normal
-            )
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
+                fontWeight = FontWeight.Normal,
+                textAlign = TextAlign.End
+            ),
+            maxLines = 1,
+            softWrap = false
         )
-        Spacer(modifier = Modifier.width(5.dp))
+        Spacer(modifier = Modifier.width(4.dp))
         Image(
             painter = painterResource(getBatteryIconRes(iconLevel, if (isConnected) pod?.isCharging == true else false)),
             contentDescription = "$label $levelText",
-            modifier = Modifier.size(width = 28.dp, height = 17.dp)
+            modifier = Modifier.size(width = 32.dp, height = 14.dp)
         )
-        Spacer(modifier = Modifier.width(5.dp))
+        Spacer(modifier = Modifier.width(4.dp))
         BasicText(
             text = levelText,
+            modifier = Modifier.width(36.dp),
             style = TextStyle(
                 color = textColor,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
+                fontSize = 13.sp,
+                lineHeight = 17.sp,
                 fontWeight = FontWeight.Normal
-            )
+            ),
+            maxLines = 1,
+            softWrap = false
         )
     }
 }
@@ -416,15 +366,15 @@ private fun BatteryLine(
 @Composable
 private fun DoneButton(
     onClick: () -> Unit,
-    containerColor: Color = Color(0xFFF2F2F2),
+    containerColor: Color = Color(0x0A000000),
     textColor: Color,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .height(50.dp)
+            .clip(RoundedCornerShape(16.dp))
             .background(containerColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center

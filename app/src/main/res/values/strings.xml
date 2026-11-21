@@ -124,8 +124,8 @@
     <string name="show_connection_popup_summary">Show the connection battery popup after the earphones connect</string>
     <string name="connection_popup_dismiss_duration">Popup auto-dismiss time</string>
     <string name="connection_popup_duration_seconds">%1$d s</string>
-    <string name="connection_popup_left_ear">Left ear</string>
-    <string name="connection_popup_right_ear">Right ear</string>
+    <string name="connection_popup_left_ear">Left</string>
+    <string name="connection_popup_right_ear">Right</string>
     <string name="connection_popup_case">Case</string>
     <string name="show_connection_notification">Show notification on connect</string>
     <string name="show_connection_notification_summary">Show the headset battery notification after the earphones connect</string>
