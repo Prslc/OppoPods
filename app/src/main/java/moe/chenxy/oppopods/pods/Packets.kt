@@ -65,6 +65,9 @@ object OppoPackets {
     /** Query product id (getRemotePID): 0x0103 */
     fun buildQueryProductId(): ByteArray = buildPacket(Cmd.QUERY_PRODUCT_ID)
 
+    /** Query earbud color id: 0x010B, empty payload. */
+    fun buildQueryColorId(): ByteArray = buildPacket(Cmd.QUERY_COLOR_ID)
+
     /** Query the currently selected EQ preset: 0x010F */
     fun buildQueryEqualizer(): ByteArray = buildPacket(Cmd.QUERY_EQ)
 
@@ -250,6 +253,10 @@ object Cmd {
     const val QUERY_PRODUCT_ID = 0x0103
     /** Product id response */
     const val PRODUCT_ID_RESPONSE = 0x8103
+    /** Query earbud color id (official app sends this after 0x8100) */
+    const val QUERY_COLOR_ID = 0x010B
+    /** Color id response: [status][colorId] */
+    const val COLOR_ID_RESPONSE = 0x810B
     /** Set EQ preset */
     const val SET_EQ_PRESET = 0x0406
     /** Query current EQ preset */
@@ -564,6 +571,29 @@ object ProductIdParser {
                 ((data[payloadStart + 2].toInt() and 0xFF) shl 8) or
                 ((data[payloadStart + 3].toInt() and 0xFF) shl 16)
         return "%06X".format(id)
+    }
+}
+
+/**
+ * Parser for the earbud color id response (0x810B).
+ *
+ * Official HeyMelody sends 0x010B with an empty payload after the 0x8100
+ * handshake and reads [status][colorId] from the response. The color id
+ * selects the downloaded artwork (e.g. 067C10 colorId=2 is Midnight Black).
+ */
+object ColorIdParser {
+    fun parse(data: ByteArray): Int? {
+        if (data.size < 11 || data[0] != 0xAA.toByte()) return null
+
+        val cmd = (data[4].toInt() and 0xFF) or ((data[5].toInt() and 0xFF) shl 8)
+        if (cmd != Cmd.COLOR_ID_RESPONSE) return null
+
+        val payLen = (data[7].toInt() and 0xFF) or ((data[8].toInt() and 0xFF) shl 8)
+        val payloadStart = 9
+        if (payLen < 2 || data.size < payloadStart + payLen) return null
+        if ((data[payloadStart].toInt() and 0xFF) != 0x00) return null
+
+        return data[payloadStart + 1].toInt() and 0xFF
     }
 }
 

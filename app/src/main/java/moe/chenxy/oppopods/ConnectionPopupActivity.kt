@@ -83,6 +83,7 @@ class ConnectionPopupActivity : ComponentActivity() {
 
         val initialBatteryParams = intent.batteryStatusCompat() ?: BatteryParams()
         val initialDeviceName = intent.getStringExtra("device_name").orEmpty()
+        val colorId = intent.getIntExtra(OppoPodsAction.EXTRA_COLOR_ID, -1)
 
         val connectVideoFile = PodImageStore.customFile(this, PodImageSlot.CONNECT_VIDEO)
 
@@ -91,6 +92,7 @@ class ConnectionPopupActivity : ComponentActivity() {
                 ConnectionPopupContent(
                     initialDeviceName = initialDeviceName,
                     initialBatteryParams = initialBatteryParams,
+                    colorId = colorId,
                     videoFile = connectVideoFile,
                     onDismiss = { finish() }
                 )
@@ -103,6 +105,7 @@ class ConnectionPopupActivity : ComponentActivity() {
 private fun ConnectionPopupContent(
     initialDeviceName: String,
     initialBatteryParams: BatteryParams,
+    colorId: Int,
     videoFile: java.io.File? = null,
     onDismiss: () -> Unit
 ) {
@@ -146,6 +149,7 @@ private fun ConnectionPopupContent(
     ConnectionPopupCard(
         deviceName = deviceName.value.ifEmpty { stringResource(R.string.app_name) },
         batteryParams = batteryParams.value,
+        colorId = colorId,
         videoFile = videoFile,
         onDismiss = onDismiss
     )
@@ -155,6 +159,7 @@ private fun ConnectionPopupContent(
 private fun ConnectionPopupCard(
     deviceName: String,
     batteryParams: BatteryParams,
+    colorId: Int,
     videoFile: java.io.File? = null,
     onDismiss: () -> Unit
 ) {
@@ -204,11 +209,14 @@ private fun ConnectionPopupCard(
                 )
 
                 Spacer(modifier = Modifier.height(18.3.dp))
-                // 内置视频是白底 mp4，深色模式下改用 HeyMelody 缓存中的官方黑色渲染
-                // （img_left/img_right + connected_box）；自定义视频仍放在圆角浅色媒体面板中。
+                // 内置视频是白底 mp4，深色模式下改用 HeyMelody 缓存中的官方配色渲染
+                // （colorId 1=白色、2=黑色；未知时沿用黑色素材）；自定义视频仍放在圆角浅色媒体面板中。
                 if (isDark && videoFile?.exists() != true) {
+                    val stillRes =
+                        if (colorId == 1) R.drawable.img_connection_white
+                        else R.drawable.img_connection_black
                     Image(
-                        painter = painterResource(R.drawable.img_connection_dark),
+                        painter = painterResource(stillRes),
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth(0.95f)

@@ -91,6 +91,7 @@ AA [TotalLen] 00 00 [Cmd 2B LE] [Seq] [PayLen 2B LE] [Payload...]
 | 259 | `0x0103` | getRemotePID |
 | 261 | `0x0105` | getRemoteVersion |
 | 262 | `0x0106` | getBatteryLevel |
+| 267 | `0x010B` | getEarBudsColorID |
 | 268 | `0x010C` | noise reduction mode queries |
 | 269 | `0x010D` | getFeatureSwitchStatus |
 | 271 | `0x010F` | getCurrentEqualizerMode |
@@ -112,6 +113,8 @@ OppoPods 当前已经使用或解析的命令：
 |---|---:|---|
 | 电量查询 | `0x0106` | 空 payload |
 | 电量响应 | `0x8106` | `[Index, RawValue]` pairs |
+| 颜色查询 | `0x010B` | 空 payload；官方 App 在 `0x8100` 握手响应后发送 |
+| 颜色响应 | `0x810B` | `[status][colorId]`；colorId 用于选择配色素材，例如 067C10 的 `colorId=2` 为夜影黑 |
 | 降噪查询 | `0x010C` | payload `01 01` |
 | 降噪响应 | `0x810C` | payload 内扫描 `01 01 <val1> <val2>` |
 | 主动上报 | `0x0204` | battery/ANC/button 等事件复用 |

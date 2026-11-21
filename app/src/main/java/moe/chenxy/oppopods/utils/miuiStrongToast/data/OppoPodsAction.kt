@@ -44,6 +44,7 @@ object OppoPodsAction {
     const val EXTRA_EQ_ENTRIES_JSON = "eq_entries_json"
     const val EXTRA_ALLOW_RFCOMM_RECONNECT = "allow_rfcomm_reconnect"
     const val EXTRA_RFCOMM_CONNECTED = "rfcomm_connected"
+    const val EXTRA_COLOR_ID = "color_id"
 
     const val ACTION_BT_LOG_ENTRY = "chen.action.oppopods.bt_log_entry"
     const val EXTRA_BT_LOG_IS_SEND = "is_send"

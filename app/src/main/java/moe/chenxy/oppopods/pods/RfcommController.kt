@@ -67,6 +67,7 @@ object RfcommController {
     private var lastTempBatt = 0
     lateinit var currentBatteryParams: BatteryParams
     private var currentAnc: Int = 1
+    private var currentColorId: Int = -1
     private var currentGameMode: Boolean = false
     private var currentEqPresetId: Int = -1
     private var currentDeviceEqPresets: List<EqDevicePreset> = emptyList()
@@ -547,6 +548,7 @@ object RfcommController {
             Intent().apply {
                 setClassName(BuildConfig.APPLICATION_ID, "moe.chenxy.oppopods.ConnectionPopupActivity")
                 putBatteryStatus(batteryParams)
+                putExtra(OppoPodsAction.EXTRA_COLOR_ID, currentColorId)
                 putExtra("device_name", currentDeviceDisplayName())
                 putExtra(
                     OppoPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECONDS,
@@ -604,6 +606,7 @@ object RfcommController {
         mDevice = device
         mPrefs = prefs
         cachedDeviceName = device.name ?: ""
+        currentColorId = -1
         reloadPrefs()
         DeviceModelRegistry.ensureLoaded(context)
         activeProfile = runCatching {
@@ -671,6 +674,8 @@ object RfcommController {
                 // queries itself, so no blind waits are needed here.
                 sendPacketSafe(OppoPackets.buildQueryProductId(), "query product id")
                 val productIdReceived = awaitResponse(productIdResponse, timeoutMs = 2000)
+                // Query earbud color id (official app sends 0x010B after the handshake).
+                sendPacketSafe(OppoPackets.buildQueryColorId(), "query color id")
                 // Query broadcast codes: await the 0x8200 response (its handler subscribes).
                 sendPacketSafe(OppoPackets.buildQueryBroadcastCodes(), "query broadcast codes")
                 awaitResponse(broadcastCodesResponse, timeoutMs = 1500)
@@ -871,6 +876,14 @@ object RfcommController {
         sendBtLogBroadcast(isSend = false, packet = packet, label = BtLogLabeler.labelRecv(packet))
         if (BuildConfig.DEBUG) {
             Log.v(TAG, "Received: ${packet.toHexString(HexFormat.UpperCase)}")
+        }
+
+        // Try parse the earbud color id (official app: 0x010B -> 0x810B)
+        val colorId = ColorIdParser.parse(packet)
+        if (colorId != null) {
+            Log.d(TAG, "Color id received: $colorId")
+            currentColorId = colorId
+            return
         }
 
         // Try parse as battery response (query response, Cmd=0x8106)
