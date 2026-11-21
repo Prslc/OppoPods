@@ -5,6 +5,7 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.res.Resources
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
@@ -46,13 +47,12 @@ object FocusIslandUtil {
                 MODULE_PACKAGE, Context.CONTEXT_IGNORE_SECURITY
             )
             // 优先用用户自定义的岛图（经 ContentProvider 跨进程读取）；缺省回退模块内置资源。
-            // 内置资源按名字解析（而非编译期 R 常量），避免模块更新后资源 ID 移位取到错图。
+            // 内置资源按名字解析（而非编译期 R 常量），避免模块更新后资源 ID 移位取到错图；
+            // release 的 resopt 会折叠资源名，查找失败时回退到编译期 R 常量。
             val leftBitmap = loadCustomBitmap(context, PodImageSlot.ISLAND_LEFT)
-                ?: moduleContext.resources.getIdentifier("img_left", "drawable", MODULE_PACKAGE)
-                    .takeIf { it != 0 }?.let { BitmapFactory.decodeResource(moduleContext.resources, it) }
+                ?: moduleContext.resources.decodeModuleBitmap("img_left", R.drawable.img_left)
             val rightBitmap = loadCustomBitmap(context, PodImageSlot.ISLAND_RIGHT)
-                ?: moduleContext.resources.getIdentifier("img_right", "drawable", MODULE_PACKAGE)
-                    .takeIf { it != 0 }?.let { BitmapFactory.decodeResource(moduleContext.resources, it) }
+                ?: moduleContext.resources.decodeModuleBitmap("img_right", R.drawable.img_right)
 
             if (leftBitmap == null || rightBitmap == null) {
                 Log.e(TAG, "Failed to decode earphone icon bitmaps")
@@ -148,5 +148,14 @@ object FocusIslandUtil {
             context.contentResolver.openInputStream(PodImageStore.uri(slot))
                 ?.use { BitmapFactory.decodeStream(it) }
         }.onFailure { Log.w(TAG, "loadCustomBitmap failed slot=${slot.key}", it) }.getOrNull()
+    }
+
+    /**
+     * 按名字解析模块内置 drawable；release 的 resopt 会折叠资源名导致查找返回 0，
+     * 此时回退到编译期 R 常量。
+     */
+    private fun Resources.decodeModuleBitmap(name: String, fallbackId: Int): Bitmap? {
+        val resId = getIdentifier(name, "drawable", MODULE_PACKAGE).takeIf { it != 0 } ?: fallbackId
+        return BitmapFactory.decodeResource(this, resId)
     }
 }

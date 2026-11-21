@@ -221,11 +221,18 @@ object MiBluetoothToastHook : HookContext() {
                 val moduleContext = context.createPackageContext(
                     "moe.chenxy.oppopods", Context.CONTEXT_IGNORE_SECURITY
                 )
-                // 按名字解析资源 ID，避免模块更新后资源 ID 移位导致跨进程取到错图
-                val boxId = moduleContext.resources.getIdentifier("img_box", "drawable", "moe.chenxy.oppopods")
-                val headsetIcon = Icon.createWithBitmap(
-                    BitmapFactory.decodeResource(moduleContext.resources, boxId)
-                )
+                val moduleResources = moduleContext.resources
+                // 按名字解析资源 ID，避免模块更新后资源 ID 移位导致跨进程取到错图；
+                // release 的 resopt 会折叠资源名，查找失败时回退到编译期 R 常量。
+                val boxId = moduleResources.getIdentifier("img_box", "drawable", "moe.chenxy.oppopods")
+                    .takeIf { it != 0 } ?: R.drawable.img_box
+                val boxBitmap = BitmapFactory.decodeResource(moduleResources, boxId)
+                val headsetIcon = if (boxBitmap != null) {
+                    Icon.createWithBitmap(boxBitmap)
+                } else {
+                    // 取图失败也不能让整条通知创建失败
+                    Icon.createWithResource(context, android.R.drawable.stat_sys_data_bluetooth)
+                }
                 val pendingIntent = PendingIntent.getActivity(
                     context,
                     0,
@@ -362,111 +369,125 @@ object MiBluetoothToastHook : HookContext() {
         }
 
 
-        hookConstructorAfter(findConstructorByParamCount("com.android.bluetooth.ble.app.MiuiBluetoothNotification", 2)) {
-            val context = getObjectField(instance, "mContext") as Context
-            if (notificationReceiver != null) return@hookConstructorAfter
+        fun registerNotificationReceiver(context: Context) {
+            if (notificationReceiver != null) return
             notificationSettings = loadNotificationSettings(context)
             cacheNotificationSettings(context, notificationSettings)
             if (!notificationSettings.showConnectionNotification) {
                 cancelAllPodsNotifications(context)
             }
 
-                    val broadcastReceiver = object : BroadcastReceiver() {
-                        override fun onReceive(p0: Context?, p1: Intent?) {
-                            if (p1?.action == "chen.action.oppopods.sendstrongtoast") {
-                                val settings = effectiveNotificationSettings(p1, context)
-                                if (!settings.showConnectionBatteryIsland) {
-                                    Log.d("OppoPods", "Temporary battery island suppressed by settings")
-                                    return
-                                }
-                                val batteryParams = p1.getParcelableExtra(
-                                    "batteryParams",
-                                    BatteryParams::class.java
-                                ) ?: return
-                                FocusIslandUtil.showBatteryIsland(
-                                    context,
-                                    batteryParams
-                                )
-                            } else if (p1?.action == "chen.action.oppopods.updatepodsnotification") {
-                                val batteryParams = p1.getParcelableExtra("batteryParams", BatteryParams::class.java)
-                                val device = p1.getParcelableExtra("device", BluetoothDevice::class.java)
-                                val settings = effectiveNotificationSettings(p1, context)
-                                if (settings.showConnectionNotification && batteryParams != null) {
-                                    createPodsNotification(
-                                        device,
-                                        context,
-                                        batteryParams,
-                                        settings.showNotificationAsIsland,
-                                        p1.getBooleanExtra(OppoPodsAction.EXTRA_RFCOMM_CONNECTED, true)
-                                    )
-                                } else if (device != null) {
-                                    cancelNotification(device, context)
-                                } else {
-                                    cancelAllPodsNotifications(context)
-                                }
-                            } else if (p1?.action == "chen.action.oppopods.cancelpodsnotification") {
-                                val device = p1.getParcelableExtra(
-                                    "device",
-                                    BluetoothDevice::class.java
-                                ) ?: return
-                                cancelNotification(device, context)
-                            } else if (p1?.action == OppoPodsAction.ACTION_PODS_ANC_CHANGED) {
-                                // 同步耳机实际 ANC 状态到本地缓存，确保下次循环切换时状态准确
-                                localAncMode = p1.getIntExtra("status", 1)
-                            } else if (p1?.action == OppoPodsAction.ACTION_NOTIFICATION_SETTINGS_CHANGED) {
-                                syncNotificationSettings(context, p1)
-                                val lastDevice = lastNotificationDevice
-                                val lastBatteryParams = lastNotificationBatteryParams
-                                if (!notificationSettings.showConnectionNotification) {
-                                    if (lastDevice != null) {
-                                        cancelNotification(lastDevice, context)
-                                    } else {
-                                        cancelAllPodsNotifications(context)
-                                    }
-                                } else if (lastDevice != null && lastBatteryParams != null) {
-                                    createPodsNotification(
-                                        lastDevice,
-                                        context,
-                                        lastBatteryParams,
-                                        notificationSettings.showNotificationAsIsland,
-                                        lastNotificationRfcommConnected
-                                    )
-                                }
-                            } else if (p1?.action == OppoPodsAction.ACTION_CYCLE_ANC) {
-                                // 循环切换降噪模式：按当前机型的 adaptiveVisible 决定是否经过自适应档。
-                                val profile = runCatching {
-                                    DeviceProfileStore.resolveProfile(context, prefs)
-                                }.getOrNull()
-                                val adaptiveEnabled = profile?.adaptiveVisible == true
-                                localAncMode = when (localAncMode) {
-                                    2 -> if (adaptiveEnabled) 4 else 3  // NC → Adaptive（若启用）或 Transparency
-                                    4 -> 3  // Adaptive → Transparency
-                                    3 -> 1  // Transparency → OFF
-                                    else -> 2  // OFF → NC
-                                }
-                                Intent(OppoPodsAction.ACTION_ANC_SELECT).apply {
-                                    setPackage("com.android.bluetooth")
-                                    putExtra("status", localAncMode)
-                                    addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
-                                    p0?.sendBroadcast(this)
-                                }
+            val broadcastReceiver = object : BroadcastReceiver() {
+                override fun onReceive(p0: Context?, p1: Intent?) {
+                    if (p1?.action == "chen.action.oppopods.sendstrongtoast") {
+                        val settings = effectiveNotificationSettings(p1, context)
+                        if (!settings.showConnectionBatteryIsland) {
+                            Log.d("OppoPods", "Temporary battery island suppressed by settings")
+                            return
+                        }
+                        val batteryParams = p1.getParcelableExtra(
+                            "batteryParams",
+                            BatteryParams::class.java
+                        ) ?: return
+                        FocusIslandUtil.showBatteryIsland(
+                            context,
+                            batteryParams
+                        )
+                    } else if (p1?.action == "chen.action.oppopods.updatepodsnotification") {
+                        val batteryParams = p1.getParcelableExtra("batteryParams", BatteryParams::class.java)
+                        val device = p1.getParcelableExtra("device", BluetoothDevice::class.java)
+                        val settings = effectiveNotificationSettings(p1, context)
+                        if (settings.showConnectionNotification && batteryParams != null) {
+                            createPodsNotification(
+                                device,
+                                context,
+                                batteryParams,
+                                settings.showNotificationAsIsland,
+                                p1.getBooleanExtra(OppoPodsAction.EXTRA_RFCOMM_CONNECTED, true)
+                            )
+                        } else if (device != null) {
+                            cancelNotification(device, context)
+                        } else {
+                            cancelAllPodsNotifications(context)
+                        }
+                    } else if (p1?.action == "chen.action.oppopods.cancelpodsnotification") {
+                        val device = p1.getParcelableExtra(
+                            "device",
+                            BluetoothDevice::class.java
+                        ) ?: return
+                        cancelNotification(device, context)
+                    } else if (p1?.action == OppoPodsAction.ACTION_PODS_ANC_CHANGED) {
+                        // 同步耳机实际 ANC 状态到本地缓存，确保下次循环切换时状态准确
+                        localAncMode = p1.getIntExtra("status", 1)
+                    } else if (p1?.action == OppoPodsAction.ACTION_NOTIFICATION_SETTINGS_CHANGED) {
+                        syncNotificationSettings(context, p1)
+                        val lastDevice = lastNotificationDevice
+                        val lastBatteryParams = lastNotificationBatteryParams
+                        if (!notificationSettings.showConnectionNotification) {
+                            if (lastDevice != null) {
+                                cancelNotification(lastDevice, context)
+                            } else {
+                                cancelAllPodsNotifications(context)
                             }
+                        } else if (lastDevice != null && lastBatteryParams != null) {
+                            createPodsNotification(
+                                lastDevice,
+                                context,
+                                lastBatteryParams,
+                                notificationSettings.showNotificationAsIsland,
+                                lastNotificationRfcommConnected
+                            )
+                        }
+                    } else if (p1?.action == OppoPodsAction.ACTION_CYCLE_ANC) {
+                        // 循环切换降噪模式：按当前机型的 adaptiveVisible 决定是否经过自适应档。
+                        val profile = runCatching {
+                            DeviceProfileStore.resolveProfile(context, prefs)
+                        }.getOrNull()
+                        val adaptiveEnabled = profile?.adaptiveVisible == true
+                        localAncMode = when (localAncMode) {
+                            2 -> if (adaptiveEnabled) 4 else 3  // NC → Adaptive（若启用）或 Transparency
+                            4 -> 3  // Adaptive → Transparency
+                            3 -> 1  // Transparency → OFF
+                            else -> 2  // OFF → NC
+                        }
+                        Intent(OppoPodsAction.ACTION_ANC_SELECT).apply {
+                            setPackage("com.android.bluetooth")
+                            putExtra("status", localAncMode)
+                            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                            p0?.sendBroadcast(this)
                         }
                     }
+                }
+            }
 
-                    val intentFilter = IntentFilter("chen.action.oppopods.sendstrongtoast")
-                    intentFilter.addAction("chen.action.oppopods.updatepodsnotification")
-                    intentFilter.addAction("chen.action.oppopods.cancelpodsnotification")
-                    intentFilter.addAction(OppoPodsAction.ACTION_CYCLE_ANC)
-                    // 监听耳机实际 ANC 状态变更广播，保持 localAncMode 与 RfcommController 同步
-                    intentFilter.addAction(OppoPodsAction.ACTION_PODS_ANC_CHANGED)
-                    intentFilter.addAction(OppoPodsAction.ACTION_NOTIFICATION_SETTINGS_CHANGED)
-                    context.registerReceiver(broadcastReceiver, intentFilter,
-                        Context.RECEIVER_EXPORTED)
-                    notificationReceiver = broadcastReceiver
-                    notificationReceiverContext = context.applicationContext ?: context
+            val intentFilter = IntentFilter("chen.action.oppopods.sendstrongtoast")
+            intentFilter.addAction("chen.action.oppopods.updatepodsnotification")
+            intentFilter.addAction("chen.action.oppopods.cancelpodsnotification")
+            intentFilter.addAction(OppoPodsAction.ACTION_CYCLE_ANC)
+            // 监听耳机实际 ANC 状态变更广播，保持 localAncMode 与 RfcommController 同步
+            intentFilter.addAction(OppoPodsAction.ACTION_PODS_ANC_CHANGED)
+            intentFilter.addAction(OppoPodsAction.ACTION_NOTIFICATION_SETTINGS_CHANGED)
+            context.registerReceiver(broadcastReceiver, intentFilter,
+                Context.RECEIVER_EXPORTED)
+            notificationReceiver = broadcastReceiver
+            notificationReceiverContext = context.applicationContext ?: context
         }
+
+        hookConstructorAfter(findConstructorByParamCount("com.android.bluetooth.ble.app.MiuiBluetoothNotification", 2)) {
+            val context = getObjectField(instance, "mContext") as Context
+            registerNotificationReceiver(context)
+        }
+
+        // 模块热重载后 MiuiBluetoothNotification 已经构造过，不会再触发构造函数回调；
+        // 此时直接沿用应用上下文注册接收器，否则模块更新后通知与超级岛会永久失效。
+        currentApplicationContext()?.let { registerNotificationReceiver(it) }
     }
+
+    private fun currentApplicationContext(): Context? = runCatching {
+        Class.forName("android.app.ActivityThread")
+            .getMethod("currentApplication")
+            .invoke(null) as? Context
+    }.getOrNull()
 
     override fun onHotReloading() {
         notificationReceiver?.let { receiver ->

@@ -16,6 +16,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.graphics.drawable.Drawable
 import moe.chenxy.oppopods.BuildConfig
+import moe.chenxy.oppopods.R
 import moe.chenxy.oppopods.pods.CustomButtonFunction
 import moe.chenxy.oppopods.pods.CustomButtonPosition
 import moe.chenxy.oppopods.pods.SpatialAudioMode
@@ -1712,8 +1713,9 @@ object MiLinkServiceHook : HookContext() {
             val moduleContext = view.context.createPackageContext(
                 MODULE_PACKAGE, Context.CONTEXT_IGNORE_SECURITY
             )
+            // release 的 resopt 会折叠资源名，查找失败时回退到编译期 R 常量
             val resId = moduleContext.resources.getIdentifier("ic_game_mode", "drawable", MODULE_PACKAGE)
-            if (resId == 0) return null
+                .takeIf { it != 0 } ?: R.drawable.ic_game_mode
             moduleContext.getDrawable(resId)?.also { gameModeIcon = it }
         }.onFailure { Log.w(TAG, "loadGameModeIcon failed", it) }.getOrNull()
     }

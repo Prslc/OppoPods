@@ -19,6 +19,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -71,6 +72,7 @@ import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsPrefsKey
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.PodParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.batteryStatusCompat
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 class ConnectionPopupActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -175,10 +177,19 @@ private fun ConnectionPopupCard(
     videoFile: java.io.File? = null,
     onDismiss: () -> Unit
 ) {
+    val isDark = isSystemInDarkTheme()
+    // 产品视频自带白色背景，深色模式下把它作为一块独立的浅色媒体面板呈现
     val videoBackgroundColor = Color(0xFFFBFBFB)
-    val containerColor = videoBackgroundColor
-    val textColor = Color(0xFF111111)
-    val secondaryTextColor = Color(0xFF333333)
+    val containerColor = if (isDark) MiuixTheme.colorScheme.surface else videoBackgroundColor
+    val textColor = if (isDark) MiuixTheme.colorScheme.onSurface else Color(0xFF111111)
+    val secondaryTextColor =
+        if (isDark) MiuixTheme.colorScheme.onSurfaceVariantSummary else Color(0xFF333333)
+    val closeButtonColor =
+        if (isDark) MiuixTheme.colorScheme.surfaceContainerHigh else Color(0xFFF1F1F1)
+    val closeIconColor =
+        if (isDark) MiuixTheme.colorScheme.onSurfaceVariantSummary else Color(0xFF8B8B8B)
+    val doneButtonColor =
+        if (isDark) MiuixTheme.colorScheme.surfaceContainerHigh else Color(0xFFF2F2F2)
 
     Box(
         modifier = Modifier
@@ -198,6 +209,8 @@ private fun ConnectionPopupCard(
         ) {
             CloseButton(
                 onClick = onDismiss,
+                buttonColor = closeButtonColor,
+                iconColor = closeIconColor,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 22.dp, end = 22.dp)
@@ -227,9 +240,17 @@ private fun ConnectionPopupCard(
 
                 Spacer(modifier = Modifier.height(38.dp))
                 ConnectionVideo(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(960f / 312f),
+                    modifier = if (isDark) {
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(34.dp))
+                            .aspectRatio(960f / 312f)
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(960f / 312f)
+                    },
                     videoFile = videoFile
                 )
                 Spacer(modifier = Modifier.height(22.dp))
@@ -242,6 +263,7 @@ private fun ConnectionPopupCard(
                 Spacer(modifier = Modifier.height(52.dp))
                 DoneButton(
                     onClick = onDismiss,
+                    containerColor = doneButtonColor,
                     textColor = textColor,
                     modifier = Modifier.padding(horizontal = 30.dp)
                 )
@@ -251,26 +273,31 @@ private fun ConnectionPopupCard(
 }
 
 @Composable
-private fun CloseButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun CloseButton(
+    onClick: () -> Unit,
+    buttonColor: Color = Color(0xFFF1F1F1),
+    iconColor: Color = Color(0xFF8B8B8B),
+    modifier: Modifier = Modifier
+) {
     Box(
         modifier = modifier
             .size(27.dp)
             .clip(CircleShape)
-            .background(Color(0xFFF1F1F1))
+            .background(buttonColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.size(9.dp)) {
             val strokeWidth = 2.8.dp.toPx()
             drawLine(
-                color = Color(0xFF8B8B8B),
+                color = iconColor,
                 start = Offset(1.dp.toPx(), 1.dp.toPx()),
                 end = Offset(size.width - 1.dp.toPx(), size.height - 1.dp.toPx()),
                 strokeWidth = strokeWidth,
                 cap = StrokeCap.Round
             )
             drawLine(
-                color = Color(0xFF8B8B8B),
+                color = iconColor,
                 start = Offset(size.width - 1.dp.toPx(), 1.dp.toPx()),
                 end = Offset(1.dp.toPx(), size.height - 1.dp.toPx()),
                 strokeWidth = strokeWidth,
@@ -388,13 +415,18 @@ private fun BatteryLine(
 }
 
 @Composable
-private fun DoneButton(onClick: () -> Unit, textColor: Color, modifier: Modifier = Modifier) {
+private fun DoneButton(
+    onClick: () -> Unit,
+    containerColor: Color = Color(0xFFF2F2F2),
+    textColor: Color,
+    modifier: Modifier = Modifier
+) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(Color(0xFFF2F2F2))
+            .background(containerColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
