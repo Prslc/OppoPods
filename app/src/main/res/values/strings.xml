@@ -132,6 +132,10 @@
     <string name="notification_island_style">Show notification as Super Island</string>
     <string name="notification_island_style_summary">Use HyperOS Focus Island style for the connection notification</string>
     <string name="notification_btn_disconnect">Disconnect</string>
+    <string name="notification_anc_transparency">Transparency</string>
+    <string name="notification_anc_on">ANC on</string>
+    <string name="notification_anc_off">ANC off</string>
+    <string name="notification_anc_adaptive">Adaptive</string>
     <string name="more_settings">More settings</string>
     <string name="noise_level_title">Noise cancellation depth</string>
     <string name="noise_level_smart">Smart</string>

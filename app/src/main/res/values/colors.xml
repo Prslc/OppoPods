@@ -2,4 +2,11 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <color name="notification_pods_text">#FF000000</color>
+    <color name="notification_pods_text_secondary">#99000000</color>
+    <color name="notification_pods_segment_text">#FF9AA5AC</color>
+    <color name="notification_pods_segment_selected_text">#FFFFFFFF</color>
+    <color name="notification_pods_segment_container">#1A3482FF</color>
+    <color name="notification_pods_segment_selected">#FF3482FF</color>
 </resources>

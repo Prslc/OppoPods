@@ -14,8 +14,11 @@ import android.graphics.BitmapFactory
 import android.graphics.drawable.Icon
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.widget.RemoteViews
 import com.xzakota.hyper.notification.focus.FocusNotification
 import moe.chenxy.oppopods.pods.DeviceProfileStore
+import moe.chenxy.oppopods.utils.BatteryIconRes
 import moe.chenxy.oppopods.utils.FocusIslandUtil
 import moe.chenxy.oppopods.utils.SystemApisUtils
 import moe.chenxy.oppopods.utils.SystemApisUtils.cancelAsUser
@@ -24,6 +27,7 @@ import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.NotificationSettings
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsPrefsKey
+import moe.chenxy.oppopods.utils.miuiStrongToast.data.PodParams
 import moe.chenxy.oppopods.R
 
 @SuppressLint("MissingPermission")
@@ -152,7 +156,6 @@ object MiBluetoothToastHook : HookContext() {
             val miheadset_notification_Box = context.resources.getIdentifier("miheadset_notification_Box", "string", "com.xiaomi.bluetooth")
             val miheadset_notification_LeftEar = context.resources.getIdentifier("miheadset_notification_LeftEar", "string", "com.xiaomi.bluetooth")
             val miheadset_notification_RightEar = context.resources.getIdentifier("miheadset_notification_RightEar", "string", "com.xiaomi.bluetooth")
-            val miheadset_notification_Disconnect = context.resources.getIdentifier("miheadset_notification_Disconnect", "string", "com.xiaomi.bluetooth")
             val system_notification_accent_color = context.resources.getIdentifier("system_notification_accent_color", "color", "android")
             if (bluetoothDevice == null) {
                 Log.e("OppoPods", "createPodsNotification: btDevice null")
@@ -202,18 +205,6 @@ object MiBluetoothToastHook : HookContext() {
                         setAllowBubbles(true)
                     }
                 )
-                val bundle = Bundle()
-                bundle.putParcelable("Device", bluetoothDevice)
-                val intent = Intent("com.android.bluetooth.headset.notification")
-                intent.setPackage("com.android.bluetooth")
-                intent.putExtra("btData", bundle)
-                intent.putExtra("disconnect", "1")
-                intent.setIdentifier("BTHeadset$address")
-                val disconnectAction = Notification.Action(
-                    285737079,
-                    context.resources.getString(miheadset_notification_Disconnect),
-                    PendingIntent.getBroadcast(context, 0, intent, PENDING_INTENT_FLAGS)
-                )
                 // 循环切换降噪模式：降噪 → 自适应 → 通透 → 关，指定 package 确保广播路由到 com.android.bluetooth 进程
                 val ancCycleIntent = Intent(OppoPodsAction.ACTION_CYCLE_ANC)
                 ancCycleIntent.setPackage("com.android.bluetooth")
@@ -232,6 +223,114 @@ object MiBluetoothToastHook : HookContext() {
                 } else {
                     // 取图失败也不能让整条通知创建失败
                     Icon.createWithResource(context, android.R.drawable.stat_sys_data_bluetooth)
+                }
+
+                fun buildCustomViews(): Pair<RemoteViews, RemoteViews> {
+                    val packageName = moduleContext.packageName
+                    val big = RemoteViews(packageName, R.layout.notification_pods_big)
+                    val small = RemoteViews(packageName, R.layout.notification_pods_small)
+                    val segmentColor = moduleContext.getColor(R.color.notification_pods_segment_text)
+                    val segmentSelectedColor =
+                        moduleContext.getColor(R.color.notification_pods_segment_selected_text)
+
+                    big.setTextViewText(R.id.tv_notification_device_name, notificationTitle)
+                    small.setTextViewText(R.id.tv_notification_small_title, notificationTitle)
+                    if (boxBitmap != null) {
+                        big.setImageViewBitmap(R.id.iv_notification_device_icon, boxBitmap)
+                        small.setImageViewBitmap(R.id.iv_notification_small_icon, boxBitmap)
+                    }
+
+                    fun bindBattery(
+                        rowId: Int,
+                        iconId: Int,
+                        pctId: Int,
+                        pod: PodParams?
+                    ): Boolean {
+                        val connected = pod?.isConnected == true
+                        big.setViewVisibility(rowId, if (connected) View.VISIBLE else View.GONE)
+                        if (connected && pod != null) {
+                            big.setTextViewText(pctId, "${pod.battery}%")
+                            big.setImageViewResource(
+                                iconId,
+                                BatteryIconRes.forLevel(pod.battery, pod.isCharging)
+                            )
+                        }
+                        return connected
+                    }
+
+                    val leftConnected = bindBattery(
+                        R.id.row_notification_left,
+                        R.id.iv_notification_left_battery,
+                        R.id.tv_notification_left_pct,
+                        batteryParams.left
+                    )
+                    val rightConnected = bindBattery(
+                        R.id.row_notification_right,
+                        R.id.iv_notification_right_battery,
+                        R.id.tv_notification_right_pct,
+                        batteryParams.right
+                    )
+                    val caseConnected = bindBattery(
+                        R.id.row_notification_case,
+                        R.id.iv_notification_case_battery,
+                        R.id.tv_notification_case_pct,
+                        batteryParams.case
+                    )
+
+                    val stateParts = mutableListOf<String>()
+                    if (leftConnected) stateParts +=
+                        "${moduleContext.getString(R.string.connection_popup_left_ear)} ${batteryParams.left!!.battery}%"
+                    if (rightConnected) stateParts +=
+                        "${moduleContext.getString(R.string.connection_popup_right_ear)} ${batteryParams.right!!.battery}%"
+                    if (caseConnected) stateParts +=
+                        "${moduleContext.getString(R.string.connection_popup_case)} ${batteryParams.case!!.battery}%"
+                    small.setTextViewText(
+                        R.id.tv_notification_small_state,
+                        stateParts.joinToString("  ")
+                    )
+
+                    val adaptiveVisible = runCatching {
+                        DeviceProfileStore.resolveProfile(context, prefs)
+                    }.getOrNull()?.adaptiveVisible == true
+                    big.setViewVisibility(
+                        R.id.tv_notification_anc_adaptive,
+                        if (adaptiveVisible) View.VISIBLE else View.GONE
+                    )
+
+                    val segments = mutableListOf<Pair<Int, Int>>()
+                    segments += R.id.tv_notification_anc_transparency to 3
+                    segments += R.id.tv_notification_anc_on to 2
+                    segments += R.id.tv_notification_anc_off to 1
+                    if (adaptiveVisible) segments += R.id.tv_notification_anc_adaptive to 4
+                    for ((viewId, mode) in segments) {
+                        if (localAncMode == mode) {
+                            big.setInt(
+                                viewId,
+                                "setBackgroundResource",
+                                R.drawable.notification_pods_segment_selected
+                            )
+                            big.setTextColor(viewId, segmentSelectedColor)
+                        } else {
+                            big.setInt(viewId, "setBackgroundColor", android.graphics.Color.TRANSPARENT)
+                            big.setTextColor(viewId, segmentColor)
+                        }
+                        val intent = Intent(OppoPodsAction.ACTION_ANC_SELECT).apply {
+                            setPackage("com.android.bluetooth")
+                            putExtra("status", mode)
+                            addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
+                        }
+                        big.setOnClickPendingIntent(
+                            viewId,
+                            PendingIntent.getBroadcast(
+                                context,
+                                300 + mode,
+                                intent,
+                                PENDING_INTENT_FLAGS
+                            )
+                        )
+                    }
+
+                    return small to big
                 }
                 val pendingIntent = PendingIntent.getActivity(
                     context,
@@ -289,22 +388,6 @@ object MiBluetoothToastHook : HookContext() {
                             action = createAction("key_anc_cycle", ancAction)
                             actionTitle = ancLabel
                         }
-                        addActionInfo {
-                            val disconnectLabel = moduleContext.getString(R.string.notification_btn_disconnect)
-                            val disconnectIntent = Intent("com.android.bluetooth.headset.notification").apply {
-                                setPackage("com.android.bluetooth")
-                                putExtra("btData", bundle)
-                                putExtra("disconnect", "1")
-                                setIdentifier("BTHeadset$address")
-                            }
-                            val disconnectAction = Notification.Action.Builder(
-                                Icon.createWithResource(context, android.R.drawable.ic_delete),
-                                disconnectLabel,
-                                PendingIntent.getBroadcast(context, 2, disconnectIntent, PENDING_INTENT_FLAGS)
-                            ).build()
-                            action = createAction("key_disconnect", disconnectAction)
-                            actionTitle = disconnectLabel
-                        }
                     }
                 } else null
                 // AOD 息屏显示：左右耳电量拼合后注入 aodTitle
@@ -324,23 +407,31 @@ object MiBluetoothToastHook : HookContext() {
                         focusExtras.putString("miui.focus.param", json.toString())
                     } catch (_: Exception) {}
                 }
+                val customViews = buildCustomViews()
+                val builder = Notification.Builder(context, CONNECTION_CHANNEL_ID)
+                    .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+                    .setWhen(0L)
+                    .setTicker(notificationTitle)
+                    .setDefaults(-1)
+                    .setContentTitle(notificationTitle)
+                    .setContentText(contentText)
+                    .setContentIntent(pendingIntent)
+                    .setDeleteIntent(deleteIntent(context, bluetoothDevice))
+                    .setColor(context.getColor(system_notification_accent_color))
+                    .apply { focusExtras?.let { addExtras(it) } }
+                    .addExtras(Bundle().apply {
+                        putString("android.substName", moduleContext.getString(R.string.app_name))
+                    })
+                    .setVisibility(Notification.VISIBILITY_PUBLIC)
+                if (customViews != null) {
+                    builder.setStyle(Notification.DecoratedCustomViewStyle())
+                        .setCustomContentView(customViews.first)
+                        .setCustomBigContentView(customViews.second)
+                }
                 notificationManager.notifyAsUser(
                     activeNotificationTag,
                     NOTIFICATION_ID,
-                    Notification.Builder(context, CONNECTION_CHANNEL_ID)
-                        .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
-                        .setWhen(0L)
-                        .setTicker(notificationTitle)
-                        .setDefaults(-1)
-                        .setContentTitle(notificationTitle)
-                        .setContentText(contentText)
-                        .setContentIntent(pendingIntent)
-                        .setDeleteIntent(deleteIntent(context, bluetoothDevice))
-                        .setColor(context.getColor(system_notification_accent_color))
-                        .addAction(disconnectAction)
-                        .apply { focusExtras?.let { addExtras(it) } }
-                        .setVisibility(Notification.VISIBILITY_PUBLIC)
-                        .build(),
+                    builder.build(),
                     SystemApisUtils.getUserAllUserHandle()
                 )
                 lastNotificationIslandStyle[address] = showNotificationAsIsland
@@ -419,6 +510,17 @@ object MiBluetoothToastHook : HookContext() {
                     } else if (p1?.action == OppoPodsAction.ACTION_PODS_ANC_CHANGED) {
                         // 同步耳机实际 ANC 状态到本地缓存，确保下次循环切换时状态准确
                         localAncMode = p1.getIntExtra("status", 1)
+                        val lastDevice = lastNotificationDevice
+                        val lastBattery = lastNotificationBatteryParams
+                        if (lastDevice != null && lastBattery != null) {
+                            createPodsNotification(
+                                lastDevice,
+                                context,
+                                lastBattery,
+                                notificationSettings.showNotificationAsIsland,
+                                lastNotificationRfcommConnected
+                            )
+                        }
                     } else if (p1?.action == OppoPodsAction.ACTION_NOTIFICATION_SETTINGS_CHANGED) {
                         syncNotificationSettings(context, p1)
                         val lastDevice = lastNotificationDevice

@@ -133,6 +133,10 @@
     <string name="notification_island_style">将通知显示为超级岛样式</string>
     <string name="notification_island_style_summary">使用 HyperOS 焦点通知/超级岛样式展示连接通知</string>
     <string name="notification_btn_disconnect">断开连接</string>
+    <string name="notification_anc_transparency">通透模式</string>
+    <string name="notification_anc_on">降噪开</string>
+    <string name="notification_anc_off">降噪关</string>
+    <string name="notification_anc_adaptive">自适应</string>
     <string name="more_settings">更多设置</string>
     <string name="noise_level_title">降噪深度</string>
     <string name="noise_level_smart">智能</string>

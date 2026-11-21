@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingStart="8dp"
+    android:paddingTop="16dp"
+    android:paddingEnd="8dp"
+    android:paddingBottom="16dp">
+
+    <TextView
+        android:id="@+id/tv_notification_device_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:ellipsize="end"
+        android:singleLine="true"
+        android:textColor="@color/notification_pods_text"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/iv_notification_device_icon"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:contentDescription="@null"
+            android:scaleType="fitCenter" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/row_notification_left"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_notification_left_label"
+                    android:layout_width="36dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:text="@string/connection_popup_left_ear"
+                    android:textColor="@color/notification_pods_text_secondary"
+                    android:textSize="12sp" />
+
+                <ImageView
+                    android:id="@+id/iv_notification_left_battery"
+                    android:layout_width="22dp"
+                    android:layout_height="10dp"
+                    android:layout_marginStart="4dp"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:id="@+id/tv_notification_left_pct"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/notification_pods_text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/row_notification_right"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_notification_right_label"
+                    android:layout_width="36dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:text="@string/connection_popup_right_ear"
+                    android:textColor="@color/notification_pods_text_secondary"
+                    android:textSize="12sp" />
+
+                <ImageView
+                    android:id="@+id/iv_notification_right_battery"
+                    android:layout_width="22dp"
+                    android:layout_height="10dp"
+                    android:layout_marginStart="4dp"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:id="@+id/tv_notification_right_pct"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/notification_pods_text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/row_notification_case"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tv_notification_case_label"
+                    android:layout_width="36dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:text="@string/connection_popup_case"
+                    android:textColor="@color/notification_pods_text_secondary"
+                    android:textSize="12sp" />
+
+                <ImageView
+                    android:id="@+id/iv_notification_case_battery"
+                    android:layout_width="22dp"
+                    android:layout_height="10dp"
+                    android:layout_marginStart="4dp"
+                    android:contentDescription="@null" />
+
+                <TextView
+                    android:id="@+id/tv_notification_case_pct"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/notification_pods_text_secondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_notification_anc"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/notification_pods_segment_container"
+        android:orientation="horizontal"
+        android:padding="4.6dp">
+
+        <TextView
+            android:id="@+id/tv_notification_anc_transparency"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:singleLine="true"
+            android:text="@string/notification_anc_transparency"
+            android:textColor="@color/notification_pods_segment_text"
+            android:textSize="12.6sp" />
+
+        <TextView
+            android:id="@+id/tv_notification_anc_on"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:singleLine="true"
+            android:text="@string/notification_anc_on"
+            android:textColor="@color/notification_pods_segment_text"
+            android:textSize="12.6sp" />
+
+        <TextView
+            android:id="@+id/tv_notification_anc_off"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:singleLine="true"
+            android:text="@string/notification_anc_off"
+            android:textColor="@color/notification_pods_segment_text"
+            android:textSize="12.6sp" />
+
+        <TextView
+            android:id="@+id/tv_notification_anc_adaptive"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:singleLine="true"
+            android:text="@string/notification_anc_adaptive"
+            android:textColor="@color/notification_pods_segment_text"
+            android:textSize="12.6sp"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>
