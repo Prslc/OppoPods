@@ -204,8 +204,8 @@ private fun ConnectionPopupCard(
                 )
 
                 Spacer(modifier = Modifier.height(18.3.dp))
-                // 内置视频是白底 mp4，深色模式下改用官方透明底渲染图，避免整块白色面板；
-                // 用户自定义视频无法重新着色，仍放在圆角浅色媒体面板中。
+                // 内置视频是白底 mp4，深色模式下改用 HeyMelody 缓存中的官方黑色渲染
+                // （img_left/img_right + connected_box）；自定义视频仍放在圆角浅色媒体面板中。
                 if (isDark && videoFile?.exists() != true) {
                     Image(
                         painter = painterResource(R.drawable.img_connection_dark),
