@@ -41,7 +41,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -50,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -60,7 +60,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import kotlinx.coroutines.delay
 import moe.chenxy.oppopods.pods.PodImageSlot
 import moe.chenxy.oppopods.pods.PodImageStore
 import moe.chenxy.oppopods.ui.AppTheme
@@ -68,7 +67,6 @@ import moe.chenxy.oppopods.ui.components.rememberBatteryDisplay
 import moe.chenxy.oppopods.utils.applyTransparentEdgeToEdge
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.BatteryParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsAction
-import moe.chenxy.oppopods.utils.miuiStrongToast.data.OppoPodsPrefsKey
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.PodParams
 import moe.chenxy.oppopods.utils.miuiStrongToast.data.batteryStatusCompat
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
@@ -90,11 +88,6 @@ class ConnectionPopupActivity : ComponentActivity() {
 
         val initialBatteryParams = intent.batteryStatusCompat() ?: BatteryParams()
         val initialDeviceName = intent.getStringExtra("device_name").orEmpty()
-        val autoDismissSeconds = intent.getIntExtra(
-            OppoPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECONDS,
-            OppoPodsPrefsKey.DEFAULT_CONNECTION_POPUP_DISMISS_SECONDS
-        ).takeIf { it in OppoPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECOND_OPTIONS }
-            ?: OppoPodsPrefsKey.DEFAULT_CONNECTION_POPUP_DISMISS_SECONDS
 
         val connectVideoFile = PodImageStore.customFile(this, PodImageSlot.CONNECT_VIDEO)
 
@@ -103,7 +96,6 @@ class ConnectionPopupActivity : ComponentActivity() {
                 ConnectionPopupContent(
                     initialDeviceName = initialDeviceName,
                     initialBatteryParams = initialBatteryParams,
-                    autoDismissSeconds = autoDismissSeconds,
                     videoFile = connectVideoFile,
                     onDismiss = { finish() }
                 )
@@ -116,7 +108,6 @@ class ConnectionPopupActivity : ComponentActivity() {
 private fun ConnectionPopupContent(
     initialDeviceName: String,
     initialBatteryParams: BatteryParams,
-    autoDismissSeconds: Int,
     videoFile: java.io.File? = null,
     onDismiss: () -> Unit
 ) {
@@ -157,11 +148,6 @@ private fun ConnectionPopupContent(
         }
     }
 
-    LaunchedEffect(autoDismissSeconds) {
-        delay(autoDismissSeconds * 1000L)
-        onDismiss()
-    }
-
     ConnectionPopupCard(
         deviceName = deviceName.value.ifEmpty { stringResource(R.string.app_name) },
         batteryParams = batteryParams.value,
@@ -180,16 +166,16 @@ private fun ConnectionPopupCard(
     val isDark = isSystemInDarkTheme()
     // 产品视频自带白色背景，深色模式下把它作为一块独立的浅色媒体面板呈现
     val videoBackgroundColor = Color(0xFFFBFBFB)
-    val containerColor = if (isDark) MiuixTheme.colorScheme.surface else videoBackgroundColor
+    val containerColor = if (isDark) MiuixTheme.colorScheme.background else videoBackgroundColor
     val textColor = if (isDark) MiuixTheme.colorScheme.onSurface else Color(0xFF111111)
     val secondaryTextColor =
         if (isDark) MiuixTheme.colorScheme.onSurfaceVariantSummary else Color(0xFF333333)
     val closeButtonColor =
-        if (isDark) MiuixTheme.colorScheme.surfaceContainerHigh else Color(0xFFF1F1F1)
+        if (isDark) MiuixTheme.colorScheme.surfaceContainerHighest else Color(0xFFF1F1F1)
     val closeIconColor =
         if (isDark) MiuixTheme.colorScheme.onSurfaceVariantSummary else Color(0xFF8B8B8B)
     val doneButtonColor =
-        if (isDark) MiuixTheme.colorScheme.surfaceContainerHigh else Color(0xFFF2F2F2)
+        if (isDark) MiuixTheme.colorScheme.surfaceContainerHighest else Color(0xFFF2F2F2)
 
     Box(
         modifier = Modifier
@@ -239,20 +225,33 @@ private fun ConnectionPopupCard(
                 )
 
                 Spacer(modifier = Modifier.height(38.dp))
-                ConnectionVideo(
-                    modifier = if (isDark) {
-                        Modifier
+                // 内置视频是白底 mp4，深色模式下改用官方透明底渲染图，避免整块白色面板；
+                // 用户自定义视频无法重新着色，仍放在圆角浅色媒体面板中。
+                if (isDark && videoFile?.exists() != true) {
+                    Image(
+                        painter = painterResource(R.drawable.img_connection_dark),
+                        contentDescription = null,
+                        modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                            .clip(RoundedCornerShape(34.dp))
-                            .aspectRatio(960f / 312f)
-                    } else {
-                        Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(960f / 312f)
-                    },
-                    videoFile = videoFile
-                )
+                            .aspectRatio(960f / 312f),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    ConnectionVideo(
+                        modifier = if (isDark) {
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .clip(RoundedCornerShape(34.dp))
+                                .aspectRatio(960f / 312f)
+                        } else {
+                            Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(960f / 312f)
+                        },
+                        videoFile = videoFile
+                    )
+                }
                 Spacer(modifier = Modifier.height(22.dp))
 
                 BatterySummary(

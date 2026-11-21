@@ -1029,20 +1029,6 @@ fun MainUI(
                             notificationIslandStyle.value
                         )
                     },
-                    connectionPopupDismissSeconds = connectionPopupDismissSeconds,
-                    onConnectionPopupDismissSecondsChange = {
-                        connectionPopupDismissSeconds.intValue = it
-                        prefs.edit {
-                            putInt(OppoPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECONDS, it)
-                        }
-                        broadcastNotificationSettings(
-                            showConnectionBatteryIsland.value,
-                            showConnectionPopup.value,
-                            it,
-                            showConnectionNotification.value,
-                            notificationIslandStyle.value
-                        )
-                    },
                     milinkSpatialAudioOptionEnabled = milinkSpatialAudioOptionEnabled,
                     onMilinkSpatialAudioOptionEnabledChange = {
                         milinkSpatialAudioOptionEnabled.value = it

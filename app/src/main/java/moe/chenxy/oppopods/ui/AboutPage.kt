@@ -214,9 +214,6 @@ fun AdvancedSettingsPage(
     showConnectionPopup: MutableState<Boolean> =
         mutableStateOf(OppoPodsPrefsKey.DEFAULT_SHOW_CONNECTION_POPUP),
     onShowConnectionPopupChange: (Boolean) -> Unit = {},
-    connectionPopupDismissSeconds: MutableState<Int> =
-        mutableIntStateOf(OppoPodsPrefsKey.DEFAULT_CONNECTION_POPUP_DISMISS_SECONDS),
-    onConnectionPopupDismissSecondsChange: (Int) -> Unit = {},
     milinkSpatialAudioOptionEnabled: MutableState<Boolean> =
         mutableStateOf(OppoPodsPrefsKey.DEFAULT_MILINK_SPATIAL_AUDIO_OPTION_ENABLED),
     onMilinkSpatialAudioOptionEnabledChange: (Boolean) -> Unit = {},
@@ -242,14 +239,6 @@ fun AdvancedSettingsPage(
         stringResource(R.string.custom_button_position_upper),
         stringResource(R.string.custom_button_position_lower)
     )
-    val popupDismissSecondOptions = OppoPodsPrefsKey.CONNECTION_POPUP_DISMISS_SECOND_OPTIONS
-    val popupDismissSecondLabels = popupDismissSecondOptions.map {
-        stringResource(R.string.connection_popup_duration_seconds, it)
-    }
-    val popupDismissSecondSelectedIndex = popupDismissSecondOptions
-        .indexOf(connectionPopupDismissSeconds.value)
-        .takeIf { it >= 0 }
-        ?: popupDismissSecondOptions.indexOf(OppoPodsPrefsKey.DEFAULT_CONNECTION_POPUP_DISMISS_SECONDS)
 
     LazyColumn(
         modifier = modifier.fillMaxSize().scrollEndHaptic(),
@@ -303,15 +292,6 @@ fun AdvancedSettingsPage(
                     summary = stringResource(R.string.show_connection_popup_summary),
                     checked = showConnectionPopup.value,
                     onCheckedChange = { onShowConnectionPopupChange(it) }
-                )
-                OverlayDropdownPreference(
-                    title = stringResource(R.string.connection_popup_dismiss_duration),
-                    items = popupDismissSecondLabels,
-                    selectedIndex = popupDismissSecondSelectedIndex,
-                    onSelectedIndexChange = {
-                        onConnectionPopupDismissSecondsChange(popupDismissSecondOptions[it])
-                    },
-                    enabled = showConnectionPopup.value
                 )
                 SwitchPreference(
                     title = stringResource(R.string.open_heytap),
