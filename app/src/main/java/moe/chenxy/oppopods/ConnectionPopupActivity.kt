@@ -210,9 +210,12 @@ private fun ConnectionPopupCard(
                 )
 
                 Spacer(modifier = Modifier.height(18.3.dp))
-                // 内置视频是白底 mp4，深色模式下改用 HeyMelody 缓存中的官方配色渲染
-                // （colorId 1=白色、2=黑色；未知时沿用黑色素材）；自定义视频仍放在圆角浅色媒体面板中。
-                if (isDark && videoFile?.exists() != true) {
+                // 内置视频是白底 mp4：深色模式或黑色机型改用官方配色静帧
+                // （colorId 1=白色、2=黑色；未知时沿用黑色素材）。
+                // 白色机型在浅色模式仍播放原视频；自定义视频保持在圆角浅色媒体面板中。
+                val hasCustomVideo = videoFile?.exists() == true
+                val showStill = !hasCustomVideo && (isDark || colorId != 1)
+                if (showStill) {
                     val stillRes =
                         if (colorId == 1) R.drawable.img_connection_white
                         else R.drawable.img_connection_black
